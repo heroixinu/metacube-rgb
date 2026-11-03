@@ -1,0 +1,16 @@
+# Generated files and local secrets
+*.o
+*.ko
+*.mod
+*.mod.c
+*.cmd
+*.pyc
+__pycache__/
+.pytest_cache/
+Module.symvers
+modules.order
+*.log
+.env
+*.token
+*.key
+*.pub

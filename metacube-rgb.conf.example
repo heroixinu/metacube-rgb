@@ -1,0 +1,7 @@
+[lighting]
+# mode: breath, steady, spin, off
+mode = steady
+# RGB color, exactly six hexadecimal digits
+color = FF0000
+# brightness: integer 0..255
+brightness = 160

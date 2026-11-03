@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="zh-CN"><head>
+<meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<meta name="color-scheme" content="dark"/><title>玄机中枢 · MetaCube Control</title>
+<link rel="stylesheet" href="/styles.css"/><script src="/app.js" defer></script>
+</head><body>
+<div class="shell">
+<aside class="sidebar">
+  <div class="brand"><span class="brand-symbol">M<span class="brand-point">.</span></span><span><strong>META<span class="accent">CUBE</span></strong><small>玄机中枢 · LINUX EDITION</small></span></div>
+  <p class="side-label">控制中心</p>
+  <nav class="navigation" aria-label="主导航">
+    <button class="nav-item selected" data-view="dashboard"><span class="nav-icon">◫</span> 总览 <span class="nav-line"></span></button>
+    <button class="nav-item" data-view="lighting"><span class="nav-icon">✺</span> 氛围灯 <span class="nav-tag">RGB</span></button>
+    <button class="nav-item" data-view="system"><span class="nav-icon">⚙</span> 系统设置</button>
+    <button class="nav-item" data-view="diagnostics"><span class="nav-icon">⌁</span> 硬件诊断</button>
+  </nav>
+  <div class="side-spacer"></div>
+  <div class="side-status"><span class="pulse-dot" id="deviceDot"></span><div><strong id="deviceStatus">连接中...</strong><small>本机 WMI 固件接口</small></div></div>
+  <div class="side-footer"><small>M11 Series-HPT · PVE</small><span>Open-source reverse-engineered controller</span></div>
+</aside>
+<main class="content">
+  <header class="topbar"><div class="crumb"><span>METACUBE</span><span class="crumb-slash">/</span><span id="pageBreadcrumb">设备总览</span></div>
+  <div class="top-actions"><span class="version-chip" id="versionChip">v2.0.0</span><button class="outline-button small" id="refreshButton">↻ 刷新设备</button></div></header>
+  <div class="page-container">
+  <section id="view-dashboard" class="view active">
+    <div class="heading-block"><div class="eyebrow">HARDWARE CONTROL CENTER <span class="line"></span> <span id="todayText"></span></div><h1>掌控你的 <em>MetaCube.</em></h1><p>灯效、性能与硬件状态，一切尽在掌握。</p></div>
+    <div class="hero-panel">
+      <div class="hero-copy"><span class="eyebrow colored">AMBIENT LIGHT CONTROL</span><h2>让光，随心而动。</h2><p>已连接主板 WMI 固件，原生控制机身光效。</p>
+        <div class="hero-stats"><div><span>当前模式</span><strong id="heroMode">—</strong></div><div><span>光效亮度</span><strong id="heroBrightness">—</strong></div><div><span>配色数量</span><strong id="heroColors">—</strong></div></div>
+        <button class="primary-button" data-go="lighting">自定义光效 <span>↗</span></button></div>
+      <div class="hero-illustration"><div class="hero-halo halo1"></div><div class="hero-halo halo2"></div><div class="hero-halo halo3"></div><div class="hero-core"><div class="hero-core-top"></div><span>METACUBE</span><div class="hero-core-light" id="heroLight"></div></div><div class="hero-beam"></div><span class="hero-decoration">M11 SERIES / HPT</span></div>
+    </div>
+    <div class="section-heading"><div><h3>系统实时状态</h3><p>来自 PVE 宿主机，不包含虚拟机统计</p></div><span class="tiny-label">LIVE MONITOR</span></div>
+    <div class="metric-grid">
+      <article class="metric-card"><div class="metric-title">CPU 使用率 <span>◉</span></div><div class="metric-number"><strong id="cpuMetric">—</strong><small>%</small></div><div class="progress"><span id="cpuBar"></span></div><p id="cpuDetail">正在读取</p></article>
+      <article class="metric-card"><div class="metric-title">内存使用率 <span>▣</span></div><div class="metric-number"><strong id="memMetric">—</strong><small>%</small></div><div class="progress"><span id="memBar"></span></div><p id="memDetail">正在读取</p></article>
+      <article class="metric-card"><div class="metric-title">系统磁盘 <span>▥</span></div><div class="metric-number"><strong id="diskMetric">—</strong><small>%</small></div><div class="progress"><span id="diskBar"></span></div><p id="diskDetail">正在读取</p></article>
+      <article class="metric-card"><div class="metric-title">CPU 温度 <span>♨</span></div><div class="metric-number"><strong id="tempMetric">—</strong><small>°C</small></div><div class="progress"><span id="tempBar"></span></div><p id="tempDetail">依赖内核传感器</p></article>
+    </div>
+    <div class="quick-row"><article class="card quick-card"><div><span class="tiny-label">POWER PROFILE</span><h3>性能模式</h3><p id="dashPerf">读取需要进入系统设置</p></div><button class="outline-button" data-go="system">查看档位 ↗</button></article><article class="card quick-card"><div><span class="tiny-label">SAVED PRESETS</span><h3>5 组专属光效</h3><p>颜色与动态效果，一键恢复。</p></div><button class="outline-button" data-go="lighting">打开预设 ↗</button></article></div>
+  </section>
+  <section id="view-lighting" class="view">
+    <div class="heading-block compact"><div class="eyebrow">LIGHTING STUDIO <span class="line"></span> OEM AMBIENT PROTOCOL</div><h1>光效 <em>工作室.</em></h1><p>完整的机身氛围灯编辑器。修改前可预览，点击「应用到设备」后才会写入固件。</p></div>
+    <div class="light-layout"><div class="light-main">
+      <article class="card effect-card"><div class="card-heading"><div><span class="tiny-label">01 / EFFECT</span><h3>灯光模式</h3></div><span class="hint">选择一个效果</span></div>
+        <div class="mode-grid"><button class="mode-tile" data-mode="breath"><span class="mode-glyph">◉</span><b>呼吸</b><small>BREATH</small></button><button class="mode-tile" data-mode="steady"><span class="mode-glyph">⬢</span><b>常亮</b><small>STEADY</small></button><button class="mode-tile" data-mode="spin"><span class="mode-glyph">⟳</span><b>旋转</b><small>SPIN</small></button><button class="mode-tile" data-mode="off"><span class="mode-glyph">◌</span><b>关闭</b><small>OFF</small></button></div>
+      </article>
+      <article class="card color-card"><div class="card-heading"><div><span class="tiny-label">02 / PALETTE</span><h3>自定义配色 <span class="light-detail">最多 6 色</span></h3></div><button id="addColorButton" class="outline-button small">＋ 添加颜色</button></div><div id="colorEditor" class="color-editor"></div>
+        <div class="color-presets"><span>快速选择</span><button data-quick-color="FF5656" aria-label="红色"></button><button data-quick-color="FFA940" aria-label="橙色"></button><button data-quick-color="FFE274" aria-label="黄色"></button><button data-quick-color="6CE8BA" aria-label="绿色"></button><button data-quick-color="50DCFA" aria-label="青蓝色"></button><button data-quick-color="8057FF" aria-label="紫色"></button><button data-quick-color="FF78C2" aria-label="粉色"></button></div></article>
+      <article class="card parameters-card"><div class="card-heading"><div><span class="tiny-label">03 / PARAMETERS</span><h3>动态参数</h3></div><span class="hint">按原厂数据位定义</span></div>
+        <div class="control-group"><div class="control-line"><label for="brightnessInput">光效亮度</label><output id="brightnessValue">160</output></div><input id="brightnessInput" type="range" min="0" max="255" step="1" value="160"/></div>
+        <div class="control-group"><div class="control-line"><label for="speedInput">旋转 / 动效速度</label><output id="speedValue">45</output></div><input id="speedInput" type="range" min="0" max="255" step="1" value="45"/></div>
+        <div class="control-options"><div><strong>旋转方向</strong><small>旋转模式有效</small></div><div class="segmented"><button data-direction="0">↻ 顺时针</button><button data-direction="1">↺ 逆时针</button></div></div>
+        <div class="control-group"><div class="control-line"><label for="cycleInput">色彩循环级别</label><output id="cycleValue">0 / 11</output></div><input id="cycleInput" type="range" min="0" max="11" step="1" value="0"/></div>
+        <div class="control-options last"><div><strong>渐变过渡</strong><small>多色切换时的平滑效果</small></div><label class="switch"><input type="checkbox" id="transitionInput"/><span class="switch-track"></span></label></div>
+      </article>
+    </div><div class="light-sidebar">
+      <article class="card preview-card"><div class="card-heading"><div><span class="tiny-label">LIVE PREVIEW</span><h3>光效预览</h3></div><span class="preview-pill">SIMULATION</span></div>
+        <div class="preview-stage" id="previewStage"><div class="preview-ellipse e1"></div><div class="preview-ellipse e2"></div><div class="preview-device"><div class="preview-device-top"></div><span>METACUBE</span><div class="preview-strip" id="previewStrip"></div></div></div>
+        <div class="preview-bottom"><div><small>预览配色</small><strong id="previewColorText">#50DCFA</strong></div><span id="previewModeText">呼吸模式</span></div><button class="primary-button full" id="applyLightingButton">应用到设备 ↗</button><p id="unsavedHint" class="unsaved">修改不会自动写入主板固件</p></article>
+      <article class="card preset-card"><div class="card-heading"><div><span class="tiny-label">04 / PRESETS</span><h3>我的光效预设</h3></div><span class="hint">5 个槽位</span></div><div id="presetList" class="preset-list"></div><p class="secondary-note">“保存”记录当前已应用的固件状态，而非尚未应用的预览值。</p></article>
+    </div></div>
+  </section>
+  <section id="view-system" class="view">
+    <div class="heading-block compact"><div class="eyebrow">SYSTEM CONTROL <span class="line"></span> PERFORMANCE</div><h1>系统 <em>设置.</em></h1><p>对应原厂控制中心的性能档位与按键灯亮度。与 RGB 写入权限独立管理。</p></div>
+    <div class="system-grid">
+      <article class="card"><div class="card-heading"><div><span class="tiny-label">PERFORMANCE PROFILE</span><h3>主机性能模式</h3></div><span id="platformBadge" class="locked-badge">默认锁定</span></div><p class="section-copy">原厂提供 Turbo / Balance / Quiet。切换可能改变风扇及功耗策略，请在确认机型支持后操作。</p>
+        <div class="profile-row"><button data-profile="2"><span>☾</span><b>静音</b><small>Quiet · 2</small></button><button data-profile="1"><span>◉</span><b>均衡</b><small>Balance · 1</small></button><button data-profile="0"><span>✦</span><b>狂暴</b><small>Turbo · 0</small></button></div>
+        <div class="warning-panel">⚠ 此类操作涉及 EC/BIOS 性能策略。首次安装默认禁用，必须使用 <code>--enable-platform-writes</code> 另行授权。请勿将网页视为已验证的超频工具。</div>
+      </article>
+      <article class="card"><div class="card-heading"><div><span class="tiny-label">BUTTON BACKLIGHT</span><h3>按键灯亮度</h3></div><span id="buttonValue" class="tiny-label">—</span></div><p class="section-copy">原厂提供 0–3 级按键灯亮度调节。该接口与机身 RGB 独立。</p>
+        <div class="button-levels"><button data-button-level="0">关闭</button><button data-button-level="1">低</button><button data-button-level="2">中</button><button data-button-level="3">高</button></div><p class="secondary-note">未确认硬件是否配备独立按键背光，未解锁时仅可查询。</p>
+      </article>
+      <article class="card wide"><div class="card-heading"><div><span class="tiny-label">PVE HOST</span><h3>主机信息</h3></div><span class="hint">从 Linux 系统实时获取</span></div><div class="info-grid" id="systemInfo"><span>正在读取...</span></div></article>
+      <article class="card wide"><div class="card-heading"><div><span class="tiny-label">HARDWARE SENSOR</span><h3>温度与风扇</h3></div><span class="hint">内核 hwmon</span></div><div class="sensor-grid" id="sensorList"><span>正在读取...</span></div></article>
+    </div>
+  </section>
+  <section id="view-diagnostics" class="view">
+    <div class="heading-block compact"><div class="eyebrow">OEM DIAGNOSTICS <span class="line"></span> READ ONLY</div><h1>硬件 <em>诊断.</em></h1><p>原厂程序包含更多 WMI 功能编号。这里仅做按需只读探测，不提供 GPU 切换、风扇强制转速或 CPU 功耗写入。</p></div>
+    <div class="card"><div class="diagnostic-header"><div><h3>原厂 WMI 能力检测</h3><p>查询可能暂不被 MetaCube 固件支持的功能，只在手动点击后执行。</p></div><button class="outline-button" id="probeOemButton">开始只读检测 ↗</button></div><div id="oemList" class="diag-list"><div class="empty-diag">未执行检测 · 不会自动调用这些固件方法</div></div></div>
+    <div class="card safety-card"><h3>为什么部分功能不可写？</h3><p>从 Windows 程序中能辨认出 GPU 混合/独显模式、Fn Lock、触摸板锁、键盘 RGB、CPU 功耗等 WMI 功能编号，但这不代表这台 MetaCube 实际搭载对应硬件，或者在 PVE 上安全可写。Web 版保留这些功能的能力检测与状态展示，待逐项验证后才能扩展写入。</p></div>
+  </section>
+  </div>
+  <footer class="footer"><span>METACUBE RGB / LINUX WMI</span><span>独立实现 · 不包含 OEM Windows 驱动</span></footer>
+</main></div>
+<dialog id="loginDialog" class="login-dialog"><form id="loginForm"><div class="login-symbol">M.</div><h2>连接到 MetaCube</h2><p>这是 PVE 宿主机控制接口。请输入服务器上生成的 Web 访问令牌。</p><label for="tokenInput">访问令牌</label><input id="tokenInput" type="password" autocomplete="off" placeholder="从 PVE 主机读取 web.token" required/><button type="submit" class="primary-button full">解锁控制台 ↗</button><small id="loginError"></small><div class="login-help">在宿主机执行：<code>sudo cat /etc/metacube-rgb/web.token</code></div></form></dialog>
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+</body></html>

@@ -1,0 +1,13 @@
+# Managed by metacube-rgb-dkms installer
+[Unit]
+Description=Restore MetaCube ambient LED settings
+After=systemd-modules-load.service
+ConditionPathExists=/etc/metacube-rgb.conf
+
+[Service]
+Type=oneshot
+ExecStartPre=/usr/sbin/modprobe metacube_ambient
+ExecStart=/usr/local/sbin/metacube-rgb apply
+
+[Install]
+WantedBy=multi-user.target
