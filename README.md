@@ -1,9 +1,9 @@
-# MetaCube RGB Web v2.1.0
+# MetaCube RGB Web v2.1.1 (Web hotfix; DKMS driver remains 2.1.0)
 
 Independent Linux/PVE WMI RGB control center for **METAPHYUNI MetaCube M11 Series-HPT**, based on static analysis of the user-supplied Windows `ControlCenter` (.NET `玄机中枢`) application. **Not the OEM Windows driver.**
 
 - **RGB first:** 4 ambient modes, 1–6 editable colors, exact RGB/HSV numeric controls, 0–255 brightness, speed, spin direction, cycle value 0–11, gradient transition, color ordering and mode-specific simulated previews.
-- **Web:** `metacube-rgb web`, Bearer-token authentication, LAN exposure off by default; WMI request preview, one-step undo and stale-state write protection.
+- **Web:** `metacube-rgb web`, Bearer-token authentication, LAN access enabled by default (limit firewall exposure); WMI request preview, one-step undo and stale-state write protection.
 - **Presets:** 5 local lighting presets, save/preview/apply separately, import/export validated JSON. OEM `.dat` files are **not compatible**.
 - **Driver:** one WMI `0x0F` SET per complete RGB profile, GET readback validation, DKMS, existing MOK signing; no PVE kernel image/boot modifications.
 - **Other OEM features:** Linux host metrics and explicit diagnostics; unsafe thermal/fan/GPU controls intentionally not writable by default.
@@ -21,7 +21,20 @@ bash install.sh --enable-writes
 metacube-rgb web
 ```
 
-If already cloned, use `git pull --ff-only` instead of cloning again. By default Web listens on `127.0.0.1:8765`; use SSH port forwarding. Browser token: `cat /etc/metacube-rgb/web.token` on the PVE host.
+If already cloned, use `git pull --ff-only` instead of cloning again. Web now listens on `0.0.0.0:8765`, prints detected reachable LAN URLs, and displays the Bearer token in an **interactive terminal**. Systemd output does not include credentials. To expose only your management address: `metacube-rgb web --host <PVE-LAN-IP>`. HTTP has **no transport encryption**: restrict TCP 8765 to trusted clients or use an HTTPS reverse proxy.
+
+### Update only the Web application (existing 2.1.0 DKMS installations)
+
+Stop an existing foreground `metacube-rgb web` with Ctrl+C, then:
+
+```bash
+cd /root/metacube-rgb
+git pull --ff-only
+bash install.sh --web-only
+metacube-rgb web
+```
+
+The `--web-only` path does not uninstall, reload, rebuild or re-sign the kernel module. It updates Python/Web files and restarts the optional systemd Web service if it was already running. If `/etc/default/metacube-rgb-web` explicitly sets `METACUBE_WEB_HOST=127.0.0.1`, that override still takes priority; change it to `0.0.0.0` or your management IP first. To force displaying the token when stdout is redirected, use `--show-token` (the token may be saved in logs). Do not expose port 8765 to the internet.
 
 ```bash
 # Creates a 32-byte SET preview but NEVER writes hardware:

@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.1.1 — LAN Web startup hotfix (DKMS module remains 2.1.0)
+
+- Default `metacube-rgb web` bind address is now `0.0.0.0:8765`, with detected PVE LAN URLs shown on launch.
+- Interactive terminal sessions show the full existing Bearer token immediately; systemd/non-TTY logs hide the secret unless `--show-token` is explicitly requested.
+- Support explicit `--host <LAN-IP>` for single-interface binding; warn about unencrypted LAN HTTP.
+- Add `bash install.sh --web-only` for upgrades that do not rebuild, reload or replace the already working kernel module.
+- Add unit tests for default/overridden listeners, LAN address discovery and token output policy.
+
+
 ## 2.1.0 — RGB Studio parity & safety
 
 - Compared original Windows `玄机中枢` ambient lighting IL functions with Linux WMI `0x0F` packet mapping.

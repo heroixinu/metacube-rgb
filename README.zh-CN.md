@@ -1,4 +1,4 @@
-# MetaCube RGB Web v2.1.0（PVE / Debian 13）
+# MetaCube RGB Web v2.1.1（Web 修复版；DKMS 驱动保持 2.1.0）
 
 这是针对 **METAPHYUNI MetaCube / M11 Series-HPT** 的 Linux 原生 WMI 控制中心。基于你提供的 Windows「玄机中枢」ControlCenter 安装包，独立实现原厂可见的机身 RGB 编辑界面、系统设置和监控能力。
 
@@ -40,35 +40,40 @@ bash install.sh --enable-writes
 
 如果只是维护当前 RGB 功能，**不要**在首次安装时加 `--enable-platform-writes`。若此前 v1 已设 `allow_writes=1`，省略参数会尝试继承现有权限；为明确起见仍建议显式提供 `--enable-writes`。
 
-## 直接启动 Web
+## 直接通过 PVE 内网 IP 访问 Web
 
 ```bash
 metacube-rgb web
 ```
 
-默认监听 `127.0.0.1:8765`。通过 SSH 端口转发，在你的电脑上执行：
+默认监听所有 IPv4 接口 `0.0.0.0:8765`。启动信息会尽量列出主机检测到的**实际内网地址**，例如 `http://192.168.18.99:8765`（请以你机器输出为准）。
+
+在**交互式终端**中，启动时会直接输出完整的 `Bearer token`，复制到浏览器登录页面即可。后台 systemd 服务不会将令牌写入 journal；已生成的令牌会复用，位置仍为 `/etc/metacube-rgb/web.token`。如果使用无 TTY 的重定向命令、明确需要输出令牌，可以加 `--show-token`，但该选项可能使 Token 进入日志。
+
+如只希望服务监听指定的 PVE 管理 IP（减少其他网段访问），执行：
 
 ```bash
-ssh -L 8765:127.0.0.1:8765 root@<PVE-IP>
+metacube-rgb web --host 192.168.18.99 --port 8765
 ```
 
-然后在浏览器打开 `http://127.0.0.1:8765`。
+上面的 IP 仅为示例，请换成你的实际管理地址。若要继续使用 SSH 隧道，仍可 `metacube-rgb web --host 127.0.0.1`。
 
-网页登录令牌在 PVE 上读取：
+**安全提醒：** HTTP 没有 TLS 加密，即使使用 Bearer Token，局域网中的明文请求仍有泄露风险。务必通过 PVE 防火墙、网络 ACL 限制 TCP 8765 的来源地址；不要做公网端口映射。需要跨不可信网络访问时请使用 HTTPS 反向代理或 VPN。
+
+### 已安装 v2.1.0：仅升级 Web，无需重新构建驱动
+
+如果之前通过终端运行了 Web，请先按 `Ctrl+C` 停止它，然后执行：
 
 ```bash
-cat /etc/metacube-rgb/web.token
+cd /root/metacube-rgb
+git pull --ff-only
+bash install.sh --web-only
+metacube-rgb web
 ```
 
-安装器生成 36 字节随机密钥的 URL-safe 表示，只在本机 root 可读取，**不会打印到 systemd 日志中**。令牌存储在浏览器的会话存储里，关闭该标签的会话后需要再次输入。
+`--web-only` 仅更新 CLI、Python Web 服务与静态网页；**不会卸载、重载、重编译或重新签名 DKMS 内核模块**。已启动的 systemd Web 服务会在更新过程中自动重启。
 
-如希望直接从局域网访问，可以启动：
-
-```bash
-metacube-rgb web --host 0.0.0.0 --port 8765
-```
-
-**注意：明文 HTTP 会暴露认证令牌和控制请求。** 不要对公网开放 PVE 的 8765 端口。推荐 SSH 转发；若需要外部访问，应在受控的内网或 HTTPS 反向代理之后使用，并同时启用访问控制和防火墙。
+如果 `/etc/default/metacube-rgb-web` 已有自定义 `METACUBE_WEB_HOST=127.0.0.1`，它依然优先于默认值，需手工修改或删除覆盖项。
 
 ## 开机自动启动 Web（可选）
 
@@ -79,11 +84,11 @@ systemctl enable --now metacube-rgb-web.service
 systemctl status metacube-rgb-web.service
 ```
 
-它同样只监听 `127.0.0.1:8765`。若需要自定义监听地址：
+默认也监听 `0.0.0.0:8765`，但 systemd 日志**不显示令牌**。如需仅绑定指定接口：
 
 ```bash
 cat > /etc/default/metacube-rgb-web <<'EOF'
-METACUBE_WEB_HOST=127.0.0.1
+METACUBE_WEB_HOST=192.168.18.99
 METACUBE_WEB_PORT=8765
 EOF
 systemctl restart metacube-rgb-web.service
@@ -91,7 +96,7 @@ systemctl restart metacube-rgb-web.service
 
 停用服务：`systemctl disable --now metacube-rgb-web.service`。
 
-**安全设计说明**：Web 服务需要写入 root 所有的 WMI sysfs 文件，所以以 root 启动，但监听默认限制为 loopback，并使用 Bearer token、同源校验和请求白名单。不要在未经隔离的网络上直接运行 root Web 服务。
+**安全设计说明**：Web 服务需要写入 root 所有的 WMI sysfs 文件，因此以 root 启动，并采用 Bearer Token、同源校验和请求白名单。由于默认允许内网访问，务必使用防火墙限制可信来源；内网 HTTP 本身不加密。
 
 ## CLI（保留 v1 命令）
 
