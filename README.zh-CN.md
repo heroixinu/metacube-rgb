@@ -1,4 +1,6 @@
-# MetaCube RGB Web v2.1.2（高级光效故障保护；DKMS 驱动保持 2.1.0）
+> **v2.1.3 本次更新：** 预览采用机身顶部发光圆环模型，支持呼吸/常亮/旋转/熄灭和多色分布。取消旋转、多色及方向等默认锁定；**仅自定义旋转/动效速度默认锁定为 2**。支持读取内置 4 套系统模板，和 5 个用户自定义槽位完全独立。系统模板直接来自你提供的 `metacube-rgb-presets-4-themes(1).json`，包括第一组原名“我的预设 1”。内置模板不能编辑或删除，但可以加载到编辑器或应用，也不会覆盖用户预设。
+
+# MetaCube RGB Web v2.1.3（圆环预览、系统模板、仅速度保护；DKMS 驱动保持 2.1.0）
 
 这是针对 **METAPHYUNI MetaCube / M11 Series-HPT** 的 Linux 原生 WMI 控制中心。基于你提供的 Windows「玄机中枢」ControlCenter 安装包，独立实现原厂可见的机身 RGB 编辑界面、系统设置和监控能力。
 
@@ -60,7 +62,7 @@ metacube-rgb web --host 192.168.18.99 --port 8765
 
 **安全提醒：** HTTP 没有 TLS 加密，即使使用 Bearer Token，局域网中的明文请求仍有泄露风险。务必通过 PVE 防火墙、网络 ACL 限制 TCP 8765 的来源地址；不要做公网端口映射。需要跨不可信网络访问时请使用 HTTPS 反向代理或 VPN。
 
-### 已安装 v2.1.0：仅升级 Web，无需重新构建驱动
+### 已安装 v2.1.x：仅升级 Web，无需重新构建驱动
 
 如果之前通过终端运行了 Web，请先按 `Ctrl+C` 停止它，然后执行：
 
@@ -212,7 +214,7 @@ MetaCube M11 在修改旋转动效速度后出现了**固件仍可回读，但�
 - 默认拒绝所有未验证的**旋转、多色、速度、方向、循环和渐变**固件写入（CLI、Web、预设应用和开机恢复共用守卫）。
 - Web 会灰掉相应编辑器按钮，显示醒目提示；WMI 数据包预览仍可使用，但明确标注是否允许写入。
 - 对可触发 `AE_NOT_FOUND` 的 OEM 键盘 RGB 只读探测，默认不再发送对应 WMI 请求。
-- 若你准备在维护窗口继续实验，必须由 PVE 本地管理员在服务启动前显式设置 `METACUBE_EXPERIMENTAL_RGB=1`；Web 请求中的参数无法解除保护。启用后仍存在实体灯带熄灭、需要完整断电恢复的风险。
+- v2.1.3 起仅动效速度的非 2 设置需要管理员显式开启 `METACUBE_ALLOW_SPEED_CUSTOMIZATION=1`；旋转、多色、方向、循环和渐变默认可用，但仍可能存在固件兼容性风险。
 - 如果必须研究不支持的 OEM RGB 键盘 WMI 只读函数，需要另行设置 `METACUBE_EXPERIMENTAL_OEM_READS=1`，这并不表示该硬件存在或可安全调用。
 
 **仅更新应用层（无需 DKMS 编译、签名或 PVE 重启）：**
@@ -227,3 +229,23 @@ metacube-rgb status
 手动运行的旧版 `metacube-rgb web` 需要先 `Ctrl+C` 退出，再重新启动；通过 systemd 运行的 Web 服务会由安装器在更新中安全重启。
 
 > 保护仅覆盖本项目的 CLI / Web / 预设 / 开机恢复操作。拥有 root 权限的程序仍可绕过应用层，直接写入内核模块的 sysfs 文件。本版未更改驱动级写入能力。
+
+## v2.1.3 光效预览与速度保护
+
+- `metacube-rgb web` 的设备预览现在模拟顶部 RGB **圆环**。常亮固定，呼吸明暗变化，旋转绕圆心运动，关闭时熄灭；多色沿圆环分布，渐变开关控制柔和过渡/硬分段。动画是浏览器模拟，不能证明真实灯带的运动路径与速度。
+- 旋转模式、多色、方向、循环、过渡默认可写。之前只在改变速度后出现 LED 不亮，断电恢复；新版本默认禁止写入 **speed != 2**。只有本机管理员显式 `METACUBE_ALLOW_SPEED_CUSTOMIZATION=1` 才能解锁（旧环境变量 `METACUBE_EXPERIMENTAL_RGB=1` 继续兼容）。**不建议实际解除该保护**。
+- Web 编辑器的速度滑块默认禁用，并以 `2` 为基准；如果当前固件速度不是 2，编辑器会将 `2` 暂存为待应用草稿，不会自动写入硬件。
+- `metacube_rgb/system_templates.json` 内置 4 套只读模板；`GET /api/templates` 可列出，`POST /api/templates/apply`（带 Bearer Token）可按 ID 应用。`metacube-rgb template list` / `metacube-rgb template apply 2` 也支持命令行操作。
+- 原来的 `preset` 用户保存、导入、导出等操作不变；升级不会覆盖 `/var/lib/metacube-rgb/presets.json`。
+
+升级（当前 PVE 已安装 v2.1.0 驱动时无需重编译）：
+
+```bash
+cd /root/metacube-rgb
+git pull --ff-only
+bash install.sh --web-only
+# 使用 systemd 服务时：systemctl restart metacube-rgb-web.service
+# 手动运行时：先 Ctrl+C 退出旧进程，再执行 metacube-rgb web
+```
+
+**注意**：虽然只锁定速度，其他高级光效的实机兼容性仍未完全验证，任何固件写入都有硬件状态异常风险；如果 LED 再次无法发光，请停止操作并考虑安全关机断电恢复。

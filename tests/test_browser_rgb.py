@@ -15,10 +15,23 @@ ROOT=Path(__file__).resolve().parents[1]
 TOKEN='q'*48
 
 
+class LockedSpeedDemo(DemoDevice):
+    """Mirror production UI lock while keeping all backend calls simulated."""
+    def __init__(self):
+        super().__init__()
+        self._current['speed']=2
+
+    def state(self):
+        state=super().state()
+        state['speed_customization_enabled']=False
+        state['rgb_experimental_enabled']=False
+        return state
+
+
 def main():
     from playwright.sync_api import sync_playwright
     with tempfile.TemporaryDirectory() as tmp:
-        api=Api(DemoDevice(), Presets(Path(tmp)/'presets.json'),demo=True)
+        api=Api(LockedSpeedDemo(), Presets(Path(tmp)/'presets.json'),demo=True)
         with sync_playwright() as playwright:
             browser=playwright.chromium.launch(headless=True,executable_path='/usr/bin/chromium',args=['--no-sandbox','--disable-dev-shm-usage','--no-proxy-server'])
             page=browser.new_page(viewport={'width':1380,'height':950},device_scale_factor=1)
@@ -54,9 +67,24 @@ def main():
             page.get_by_text('成功连接至 MetaCube').wait_for(timeout=3000) if False else None
             page.wait_for_timeout(250)
             page.locator('[data-view="lighting"]').click()
+            page.locator('#systemTemplateList .system-template-item').first.wait_for(timeout=3000)
+            assert page.locator('#systemTemplateList .system-template-item').count()==4
+            assert page.locator('#speedInput').is_disabled(), 'Speed slider must be locked'
+            assert page.locator('button.mode-tile[data-mode="spin"]').is_enabled(), 'Spin mode must remain enabled'
+            assert page.locator('#addColorButton').is_enabled(), 'Multicolor must remain available'
+            assert 'conic-gradient' in page.locator('#previewRing').evaluate('(el) => el.style.getPropertyValue("--ring-palette")')
+            # Loading a built-in theme must not consume or overwrite any user slots.
+            first=page.locator('#systemTemplateList .system-template-item').first
+            first.get_by_text('载入编辑器').click()
+            assert page.locator('#colorEditor .color-row').count()==4
+            assert page.locator('button.mode-tile[data-mode="spin"]').get_attribute('class').find('active')>=0
+            assert page.locator('#systemTemplateList .system-template-item').count()==4
+            # The rest of the test uses a fresh 3-color draft.
+            page.once('dialog',lambda dialog:dialog.accept())
+            page.locator('#discardDraftButton').click()
             page.locator('#addColorButton').click()
             assert page.locator('#colorEditor .color-row').count()==4
-            page.locator('[data-mode="spin"]').click()
+            page.locator('button.mode-tile[data-mode="spin"]').click()
             page.locator('#nextCycleButton').click()
             page.locator('#colorEditor details').first.click()
             assert page.locator('#colorEditor input[type=number]').count()>=6

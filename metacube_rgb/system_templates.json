@@ -1,0 +1,80 @@
+{
+  "version": 1,
+  "slots": [
+    {
+      "name": "我的预设 1",
+      "lighting": {
+        "mode": "spin",
+        "colors": [
+          "0033AA",
+          "0088FF",
+          "00E5D4",
+          "8844FF"
+        ],
+        "brightness": 160,
+        "speed": 2,
+        "direction": 0,
+        "cycle": 0,
+        "transition": 0
+      }
+    },
+    {
+      "name": "落日熔岩",
+      "lighting": {
+        "mode": "spin",
+        "colors": [
+          "FF3300",
+          "FF6600",
+          "FF9900",
+          "FFCC33",
+          "FF6688",
+          "DD2255"
+        ],
+        "brightness": 160,
+        "speed": 2,
+        "direction": 0,
+        "cycle": 0,
+        "transition": 0
+      }
+    },
+    {
+      "name": "深海幻境",
+      "lighting": {
+        "mode": "spin",
+        "colors": [
+          "001A66",
+          "0033CC",
+          "0066FF",
+          "00AAFF",
+          "00DDBB",
+          "007788"
+        ],
+        "brightness": 160,
+        "speed": 2,
+        "direction": 0,
+        "cycle": 0,
+        "transition": 0
+      }
+    },
+    {
+      "name": "霓虹幻夜",
+      "lighting": {
+        "mode": "spin",
+        "colors": [
+          "5500FF",
+          "8833FF",
+          "CC22FF",
+          "FF22AA",
+          "FF4477",
+          "9944FF"
+        ],
+        "brightness": 160,
+        "speed": 2,
+        "direction": 0,
+        "cycle": 0,
+        "transition": 0
+      }
+    },
+    null
+  ]
+}

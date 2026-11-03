@@ -17,6 +17,7 @@ from . import __version__
 from .core import (Device, MetaCubeError, MetaCubeConflict, Presets, normalize_lighting,
                    build_ambient_set_packet, rgb_experimental_reasons, experimental_rgb_enabled)
 from .metrics import Sampler
+from .templates import system_templates, system_template
 
 WEB_FILES = {
     '/': ('index.html','text/html; charset=utf-8'),
@@ -43,6 +44,7 @@ class DemoDevice(Device):
                 'mode_number': MODES[data['mode']],
                 'writable':True,'platform_writable':False,
                 'rgb_experimental_enabled':True,
+                'speed_customization_enabled':True,
                  'extended':True,'raw':self._raw()}
 
     def _raw(self):
@@ -90,6 +92,8 @@ class Api:
                 return self.sampler.snapshot()
         if path == '/api/presets':
             return {'slots':self.presets.read()}
+        if path == '/api/templates':
+            return {'templates': system_templates()}
         if path == '/api/presets/export':
             return self.presets.export()
         if path == '/api/oem-basic':
@@ -158,6 +162,17 @@ class Api:
             if set(obj) != {'slot'}:
                 raise MetaCubeError('Expected slot')
             return {'slots':self.presets.update(obj['slot'],None)}
+        if path == '/api/templates/apply':
+            if set(obj) - {'id','expected_raw'} or 'id' not in obj:
+                raise MetaCubeError('Expected system template id and optional expected_raw')
+            with self._lock:
+                desired = system_template(obj['id'])
+                before = self.device.state()
+                after = self.device.lighting(desired,expected_raw=obj.get('expected_raw'))
+                if after['raw'] != before['raw']:
+                    self._undo_before = before
+                    self._undo_after = after
+                return {'lighting':after,'undo_available':self._undo_before is not None}
         if path == '/api/presets/apply':
             if set(obj) - {'slot','expected_raw'} or 'slot' not in obj:
                 raise MetaCubeError('Expected slot and optional expected_raw')

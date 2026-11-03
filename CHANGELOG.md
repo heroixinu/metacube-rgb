@@ -1,3 +1,11 @@
+## v2.1.3 (Web/CLI only; kernel v2.1.0)
+
+- Visualize the real MetaCube top-cover **LED ring**, with conic gradients and mode-dependent ring animations (breath/steady/spin/off).
+- Restore spin, multiple colors, direction, cycle and transition to default writable behavior; keep only animation speed fixed to `2` without explicit administrator override.
+- Add four read-only system templates sourced from supplied JSON, separate from existing five user presets.
+- New read/apply system template API and CLI; `--web-only` installer now ships the bundled catalog.
+- Add tests for speed-only safety and system-template isolation.
+
 # Changelog
 
 ## 2.1.2 — Firmware LED output incident: experimental RGB safeguard

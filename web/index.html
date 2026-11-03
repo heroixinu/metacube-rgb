@@ -20,7 +20,7 @@
 </aside>
 <main class="content">
   <header class="topbar"><div class="crumb"><span>METACUBE</span><span class="crumb-slash">/</span><span id="pageBreadcrumb">设备总览</span></div>
-  <div class="top-actions"><span class="version-chip" id="versionChip">v2.1.0</span><button class="outline-button small" id="refreshButton">↻ 刷新设备</button></div></header>
+  <div class="top-actions"><span class="version-chip" id="versionChip">v2.1.3</span><button class="outline-button small" id="refreshButton">↻ 刷新设备</button></div></header>
   <div class="page-container">
   <section id="view-dashboard" class="view active">
     <div class="heading-block"><div class="eyebrow">HARDWARE CONTROL CENTER <span class="line"></span> <span id="todayText"></span></div><h1>掌控你的 <em>MetaCube.</em></h1><p>灯效、性能与硬件状态，一切尽在掌握。</p></div>
@@ -41,7 +41,7 @@
   </section>
   <section id="view-lighting" class="view">
     <div class="heading-block compact"><div class="eyebrow">LIGHTING STUDIO <span class="line"></span> OEM AMBIENT PROTOCOL</div><h1>光效 <em>工作室.</em></h1><p>机身 RGB 专用工作室：先编辑、再预览，只有点击「应用到设备」才会写入固件。</p></div>
-    <div id="rgbSafetyNotice" class="rgb-safety-notice" role="status" hidden>安全保护已启用：之前高级光效测试曾导致灯光停止输出，需完整断电恢复。当前只允许单色、呼吸/常亮/关闭和亮度；旋转、多色、速度、方向、循环、渐变默认禁止写入。只有本机管理员才能通过环境变量显式解锁，解锁后仍有硬件风险。</div>
+    <div id="rgbSafetyNotice" class="rgb-safety-notice" role="status" hidden>固件保护：旋转 / 动效速度固定为 2，默认不允许自定义，以免再次出现灯光熄灭。旋转模式、多色、方向、循环和渐变均可使用，但部分光效尚未完成真实硬件验收，建议先预检再应用。</div>
     <div class="rgb-actions"><div><strong>RGB 编辑状态</strong><span id="draftStateLabel">当前配置已同步</span></div><div class="rgb-action-buttons"><button class="outline-button small" id="discardDraftButton">↺ 放弃未应用修改</button><button class="outline-button small" id="undoLightingButton" disabled>撤销上一次应用</button><button class="outline-button small" id="inspectPacketButton">查看 WMI 数据包</button></div></div>
     <div class="light-layout"><div class="light-main">
       <article class="card effect-card"><div class="card-heading"><div><span class="tiny-label">01 / EFFECT</span><h3>灯光模式</h3></div><span class="hint">选择一个效果</span></div>
@@ -51,16 +51,32 @@
         <div class="color-presets"><span>设置第一种颜色</span><button data-quick-color="FF5656" aria-label="红色"></button><button data-quick-color="FFA940" aria-label="橙色"></button><button data-quick-color="FFE274" aria-label="黄色"></button><button data-quick-color="6CE8BA" aria-label="绿色"></button><button data-quick-color="50DCFA" aria-label="青蓝色"></button><button data-quick-color="8057FF" aria-label="紫色"></button><button data-quick-color="FF78C2" aria-label="粉色"></button></div></article>
       <article class="card parameters-card"><div class="card-heading"><div><span class="tiny-label">03 / PARAMETERS</span><h3>动态参数</h3></div><span class="hint">按原厂数据位定义</span></div>
         <div class="control-group"><div class="control-line"><label for="brightnessInput">光效亮度 <small>原厂 0–10 档 / Linux 0–255 精度</small></label><output id="brightnessValue">160</output></div><input id="brightnessInput" type="range" min="0" max="255" step="1" value="160"/></div>
-        <div class="control-group"><div class="control-line"><label for="speedInput">旋转 / 动效速度</label><output id="speedValue">45</output></div><input id="speedInput" type="range" min="0" max="255" step="1" value="45"/></div>
+        <div class="control-group"><div class="control-line"><label for="speedInput">旋转 / 动效速度 <small>默认锁定在 2 · 需要宿主机管理员解锁</small></label><output id="speedValue">2</output></div><input id="speedInput" type="range" min="0" max="255" step="1" value="2" disabled aria-describedby="rgbSafetyNotice"/></div>
         <div class="control-options"><div><strong>旋转方向</strong><small>旋转模式有效</small></div><div class="segmented"><button data-direction="0">↻ 顺时针</button><button data-direction="1">↺ 逆时针</button></div></div>
         <div class="control-group"><div class="control-line"><label for="cycleInput">色彩循环级别</label><div class="cycle-action"><output id="cycleValue">0 / 11</output><button class="outline-button small" id="nextCycleButton">下一级 ↻</button></div></div><input id="cycleInput" type="range" min="0" max="11" step="1" value="0"/></div>
         <div class="control-options last"><div><strong>渐变过渡</strong><small>多色切换时的平滑效果</small></div><label class="switch"><input type="checkbox" id="transitionInput"/><span class="switch-track"></span></label></div>
       </article>
     </div><div class="light-sidebar">
       <article class="card preview-card"><div class="card-heading"><div><span class="tiny-label">LIVE PREVIEW</span><h3>光效预览</h3></div><span class="preview-pill">SIMULATION</span></div>
-        <div class="preview-stage" id="previewStage"><div class="preview-ellipse e1"></div><div class="preview-ellipse e2"></div><div class="preview-device"><div class="preview-device-top"></div><span>METACUBE</span><div class="preview-strip" id="previewStrip"></div></div></div>
-        <div class="preview-bottom"><div><small>预览配色</small><strong id="previewColorText">#50DCFA</strong></div><span id="previewModeText">呼吸模式</span></div><p class="simulation-note">动画仅用于区分模式；真实灯珠排列、转速曲线和过渡以固件实际效果为准。</p><button class="primary-button full" id="applyLightingButton">应用到设备 ↗</button><p id="unsavedHint" class="unsaved">修改不会自动写入主板固件</p></article>
-      <article class="card preset-card"><div class="card-heading"><div><span class="tiny-label">04 / PRESETS</span><h3>我的光效预设</h3></div><span class="hint">5 个槽位</span></div><div class="preset-toolbar"><button class="outline-button small" id="exportPresetsButton">导出 JSON</button><button class="outline-button small" id="importPresetsButton">导入 JSON</button><input type="file" id="importPresetsFile" accept="application/json,.json" hidden/></div><div id="presetList" class="preset-list"></div><p class="secondary-note">「保存草稿」不会操作硬件；「载入编辑器」只修改预览；「立即应用」才会直接写入主板。导入预设也不会写入硬件。</p></article>
+        <div class="preview-stage" id="previewStage" data-mode="breath">
+          <div class="preview-ellipse e1"></div><div class="preview-ellipse e2"></div>
+          <div class="preview-device" aria-label="MetaCube 顶部 RGB 圆环，效果仅供模拟">
+            <div class="preview-device-top">
+              <div class="preview-ring-assembly" id="previewRing" role="img" aria-label="RGB 圆环">
+                <div class="preview-ring-motion" id="previewRingMotion">
+                  <div class="preview-ring-haze"></div>
+                  <div class="preview-ring-band"></div>
+                  <div class="preview-ring-shimmer"></div>
+                </div>
+                <div class="preview-ring-hole"></div>
+              </div>
+            </div>
+            <span class="preview-device-mark">✦</span>
+          </div>
+        </div>
+        <div class="preview-bottom"><div><small>预览配色</small><strong id="previewColorText">#50DCFA</strong></div><span id="previewModeText">呼吸模式</span></div><p class="simulation-note">参考真实机身顶部圆环制作的模拟预览；真实灯珠位置、速度曲线与过渡由固件决定。</p><button class="primary-button full" id="applyLightingButton">应用到设备 ↗</button><p id="unsavedHint" class="unsaved">修改不会自动写入主板固件</p></article>
+      <article class="card preset-card system-presets-card"><div class="card-heading"><div><span class="tiny-label">04 / SYSTEM TEMPLATES</span><h3>系统光效模板</h3></div><span class="hint">内置 · 只读</span></div><div id="systemTemplateList" class="preset-list"><span class="secondary-note">正在载入系统模板...</span></div><p class="secondary-note">内置 4 套配色，来源于你提供的原始 JSON。可预览、载入编辑器或直接应用；不会占用和覆盖用户预设槽位。</p></article>
+      <article class="card preset-card"><div class="card-heading"><div><span class="tiny-label">05 / USER PRESETS</span><h3>用户自定义预设</h3></div><span class="hint">5 个槽位</span></div><div class="preset-toolbar"><button class="outline-button small" id="exportPresetsButton">导出 JSON</button><button class="outline-button small" id="importPresetsButton">导入 JSON</button><input type="file" id="importPresetsFile" accept="application/json,.json" hidden/></div><div id="presetList" class="preset-list"></div><p class="secondary-note">「保存草稿」不会操作硬件；「载入编辑器」只修改预览；「立即应用」才会直接写入主板。导入预设也不会写入硬件。</p></article>
       <article class="card packet-card" id="packetCard" hidden><div class="card-heading"><div><span class="tiny-label">WMI 32-BYTE PACKET</span><h3>原厂数据包预检</h3></div><button class="outline-button small" id="closePacketButton">关闭</button></div><p class="secondary-note">仅生成预计的 SET 数据，不会发送到 EC。头部 00FB000F；保留未知保留区。</p><pre id="packetText" class="packet-data">请先编辑灯光配置</pre></article>
     </div></div>
   </section>

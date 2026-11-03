@@ -171,6 +171,7 @@ if [[ "$WEB_ONLY" -eq 1 ]]; then
   fi
   info 'Updating Web/CLI files without touching the DKMS module'
   for file in "$HERE"/metacube_rgb/*.py; do install -m 0644 "$file" "$LIBROOT/python/metacube_rgb/$(basename "$file")"; done
+  install -m 0644 "$HERE/metacube_rgb/system_templates.json" "$LIBROOT/python/metacube_rgb/system_templates.json"
   for file in "$HERE"/web/*; do install -m 0644 "$file" "$LIBROOT/python/web/$(basename "$file")"; done
   "$CLI" web --help >/dev/null
   if [[ "$WEB_RUNNING" -eq 1 ]]; then systemctl start metacube-rgb-web.service; fi
@@ -249,6 +250,7 @@ fi
 info 'Installing controller, static web assets and services'
 install -d -m 0755 "$LIBROOT/python/metacube_rgb" "$LIBROOT/python/web"
 for file in "$HERE"/metacube_rgb/*.py; do install -m 0644 "$file" "$LIBROOT/python/metacube_rgb/$(basename "$file")"; done
+install -m 0644 "$HERE/metacube_rgb/system_templates.json" "$LIBROOT/python/metacube_rgb/system_templates.json"
 for file in "$HERE"/web/*; do install -m 0644 "$file" "$LIBROOT/python/web/$(basename "$file")"; done
 printf '%s\n' "$MARKER" > "$LIBROOT/.managed"
 install -m 0755 "$HERE/tools/metacube-rgb" "$CLI"

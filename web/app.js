@@ -4,9 +4,15 @@ const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => [...document.querySelectorAll(selector)];
 const labels = {breath:'呼吸',steady:'常亮',spin:'旋转',off:'关闭'};
 const oemNames = {system_mode:'主机性能模式',button_brightness:'按键灯亮度',fans_rpm:'CPU / GPU 风扇',gpu_mode:'GPU 模式',fn_lock:'Fn Lock',touchpad_lock:'触摸板锁定',keyboard_mode:'键盘 RGB 模式',keyboard_brightness:'键盘 RGB 亮度',ac_type:'供电接口',cpu_temperature_raw:'原厂温度读数'};
-const M = {token:sessionStorage.getItem('metacube-token')||'', live:null,draft:null,dirty:false,presets:Array(5).fill(null),tab:'dashboard',oem:null,busy:false,online:false,baselineRaw:null,undoAvailable:false};
-function advancedRgbLocked(){return Boolean(M.live&&!M.live.rgb_experimental_enabled);}
-function draftRequiresExperimental(s){return Boolean(s&&(s.mode==='spin'||s.colors.length!==1||s.speed!==2||s.direction!==0||s.cycle!==0||s.transition!==0));}
+const M = {token:sessionStorage.getItem('metacube-token')||'', live:null,draft:null,dirty:false,templates:[],presets:Array(5).fill(null),tab:'dashboard',oem:null,busy:false,online:false,baselineRaw:null,undoAvailable:false};
+function advancedRgbLocked(){return Boolean(M.live&&!M.live.speed_customization_enabled);}
+function draftRequiresExperimental(s){return Boolean(s&&s.speed!==2);}
+function editingDraft(state){
+  const draft=cleanLighting(state);
+  // Explicitly stage the safe baseline in the editor; no firmware write occurs.
+  if(advancedRgbLocked())draft.speed=2;
+  return draft;
+}
 
 async function api(path, method='GET', payload=null){
   const headers={'Authorization':`Bearer ${M.token}`};
@@ -64,6 +70,19 @@ function gradientFor(colors, smooth=true){
   if(smooth)return `linear-gradient(90deg,${hex.map(x=>'#'+x).join(',')})`;
   return `linear-gradient(90deg,${hex.map((x,i)=>`#${x} ${100*i/hex.length}% ${100*(i+1)/hex.length}%`).join(',')})`;
 }
+function ringGradientFor(colors, smooth=true){
+  const palette=colors?.length?colors:['000000'];
+  if(palette.length===1)return `conic-gradient(from -90deg, #${palette[0]} 0deg 360deg)`;
+  const step=360/palette.length;
+  if(smooth){
+    // Complete circle: blend last back into first for a seamless rotating gradient.
+    const stops=palette.map((hex,i)=>`#${hex} ${(i*step).toFixed(3)}deg`);
+    stops.push(`#${palette[0]} 360deg`);
+    return `conic-gradient(from -90deg, ${stops.join(', ')})`;
+  }
+  return `conic-gradient(from -90deg, ${palette.map((hex,i)=>
+    `#${hex} ${(i*step).toFixed(3)}deg ${((i+1)*step).toFixed(3)}deg`).join(', ')})`;
+}
 function applyHeroColor(state){
   if(!state)return;
   const colors=state.colors?.length?state.colors:['000000'];
@@ -74,26 +93,17 @@ function applyHeroColor(state){
 }
 function previewLighting(state){
   const colors=state.colors?.length?state.colors:['000000'];
-  const c=colors[0];
-  const strip=$('#previewStrip');
-  document.documentElement.style.setProperty('--led','#'+c);
-  strip.style.opacity=state.mode==='off'?'0':String(Math.max(.04,state.brightness/255));
-  strip.style.animation='none';
-  strip.style.animationDirection='normal';
-  if(state.mode==='spin' && colors.length>1){
-    // Simulation only: WMI speed/rotation and LED geometry are OEM defined.
-    const loop=colors.concat(colors,colors);
-    strip.style.background=gradientFor(loop,Boolean(state.transition));
-    strip.style.backgroundSize='300% 100%';
-    strip.style.animation=`mc-spin ${(1+((255-state.speed)/255)*7).toFixed(2)}s linear infinite`;
-    strip.style.animationDirection=state.direction===1?'reverse':'normal';
-  }else{
-    strip.style.background=gradientFor(colors,Boolean(state.transition));
-    strip.style.backgroundSize='100% 100%';
-    if(state.mode==='breath')strip.style.animation='mc-breathe 2.8s ease-in-out infinite';
-    if(state.mode==='spin' && colors.length===1)strip.style.animation='mc-breathe 2s ease-in-out infinite';
-  }
-  $('#previewStage').dataset.mode=state.mode;
+  const ring=$('#previewRing');
+  const stage=$('#previewStage');
+  const intensity=Math.max(0,Math.min(1,state.brightness/255));
+  const speed=Number.isFinite(Number(state.speed))?Number(state.speed):2;
+  stage.dataset.mode=state.mode;
+  ring.style.setProperty('--ring-palette',ringGradientFor(colors,Boolean(state.transition)));
+  ring.style.setProperty('--ring-intensity',String(intensity));
+  ring.style.setProperty('--ring-period',`${(1+((255-speed)/255)*7).toFixed(2)}s`);
+  ring.style.setProperty('--ring-direction',state.direction===1?'reverse':'normal');
+  document.documentElement.style.setProperty('--led','#'+colors[0]);
+  ring.setAttribute('aria-label',`${labels[state.mode]||'未知'} · ${colors.length} 色 · 亮度 ${state.brightness}/255`);
 }
 function cleanLighting(state){
   return {mode:state.mode, colors:[...state.colors],brightness:state.brightness,
@@ -101,9 +111,9 @@ function cleanLighting(state){
 }
 function discardDraft(){
   if(!M.live)return;
-  M.draft=cleanLighting(M.live);
+  M.draft=editingDraft(M.live);
   M.baselineRaw=M.live.raw;
-  M.dirty=false;
+  M.dirty=M.draft.speed!==M.live.speed;
   createColorEditor();refreshDraft();
 }
 function refreshDraft(){
@@ -123,11 +133,9 @@ function refreshDraft(){
   const locked=advancedRgbLocked();
   const unsafeDraft=locked&&draftRequiresExperimental(M.draft);
   $('#rgbSafetyNotice').hidden=!locked;
-  $('[data-mode="spin"]').disabled=locked;
-  for(const id of ['speedInput','cycleInput','transitionInput','nextCycleButton'])$('#'+id).disabled=locked;
-  $$('[data-direction]').forEach(btn=>btn.disabled=locked);
+  $('#speedInput').disabled=locked;
   const hint=conflict?'设备已被其他操作修改，请放弃草稿后重新编辑':
-    (unsafeDraft?'此配置涉及未经验证的 RGB 高级参数，已禁止写入；请恢复为单色、呼吸/常亮、速度 2 等安全参数':
+    (unsafeDraft?'当前速度不是 2，默认锁定自定义速度；请恢复为速度 2 后再应用':
     (M.dirty?'存在尚未写入固件的改动':'当前草稿与设备同步'));
   $('#unsavedHint').textContent=hint;
   $('#unsavedHint').classList.toggle('dirty',M.dirty || conflict);
@@ -137,7 +145,7 @@ function refreshDraft(){
   $('#undoLightingButton').disabled=!M.online||!M.live?.writable||M.busy||!M.undoAvailable||M.dirty;
   $('#discardDraftButton').disabled=!M.dirty||M.busy;
   $('#inspectPacketButton').disabled=!M.online||M.busy||conflict;
-  $('#addColorButton').disabled=M.draft.colors.length>=6||M.busy||locked;
+  $('#addColorButton').disabled=M.draft.colors.length>=6||M.busy;
   previewLighting(M.draft);
 }
 function createColorEditor(){
@@ -150,8 +158,8 @@ function createColorEditor(){
     code.setAttribute('aria-label',`颜色 ${index+1} 十六进制`);
     const label=document.createElement('span');label.className='color-label';label.textContent=`颜色 ${index+1}`;
     const spacer=document.createElement('span');spacer.className='spacer';
-    const up=document.createElement('button');up.className='icon-button';up.textContent='↑';up.title='前移颜色';up.disabled=index===0||advancedRgbLocked();
-    const down=document.createElement('button');down.className='icon-button';down.textContent='↓';down.title='后移颜色';down.disabled=index===M.draft.colors.length-1||advancedRgbLocked();
+    const up=document.createElement('button');up.className='icon-button';up.textContent='↑';up.title='前移颜色';up.disabled=index===0;
+    const down=document.createElement('button');down.className='icon-button';down.textContent='↓';down.title='后移颜色';down.disabled=index===M.draft.colors.length-1;
     const remove=document.createElement('button');remove.className='icon-button';remove.textContent='×';remove.title='移除颜色';remove.disabled=M.draft.colors.length===1;
     const move=(shift)=>{const next=index+shift;[M.draft.colors[index],M.draft.colors[next]]=[M.draft.colors[next],M.draft.colors[index]];M.dirty=true;createColorEditor();refreshDraft();};
     up.addEventListener('click',()=>move(-1));down.addEventListener('click',()=>move(1));
@@ -215,8 +223,9 @@ function displayStatus(state){
   M.live=state;setDot(true);
   applyHeroColor(state);
   if(!M.dirty){
-    M.draft=cleanLighting(state);
+    M.draft=editingDraft(state);
     M.baselineRaw=state.raw;
+    M.dirty=M.draft.speed!==state.speed;
     createColorEditor();
   }
   refreshDraft();
@@ -252,6 +261,47 @@ function renderPresets(){
     el.append(summary,controls);list.append(el);
   });
 }
+function renderSystemTemplates(){
+  const list=$('#systemTemplateList');list.replaceChildren();
+  if(!M.templates.length){list.textContent='系统模板暂不可用';return;}
+  for(const tpl of M.templates){
+    const el=document.createElement('div');el.className='preset-item system-template-item';
+    const summary=document.createElement('div');summary.className='preset-summary';
+    const icon=document.createElement('i');icon.className='system-template-ring';
+    icon.style.setProperty('--template-palette',ringGradientFor(tpl.lighting.colors,Boolean(tpl.lighting.transition)));
+    const title=document.createElement('div');title.className='preset-text';
+    const name=document.createElement('strong');name.textContent=tpl.name;
+    const meta=document.createElement('small');meta.textContent=`${labels[tpl.lighting.mode]} · ${tpl.lighting.colors.length} 色 · 速度 ${tpl.lighting.speed}`;
+    title.append(name,meta);summary.append(icon,title);
+    const controls=document.createElement('div');controls.className='preset-buttons';
+    const load=document.createElement('button');load.textContent='载入编辑器';
+    load.addEventListener('click',()=>{
+      if(M.dirty&&!confirm('覆盖当前未应用的草稿？不会修改硬件。'))return;
+      M.draft=editingDraft(tpl.lighting);M.dirty=true;
+      createColorEditor();refreshDraft();selectTab('lighting');
+      toast(`已载入系统模板「${tpl.name}」，暂未写入硬件`);
+    });
+    const apply=document.createElement('button');apply.textContent='立即应用';
+    apply.disabled=!M.live?.writable;
+    apply.addEventListener('click',()=>applySystemTemplate(tpl));
+    controls.append(load,apply);el.append(summary,controls);list.append(el);
+  }
+}
+async function loadSystemTemplates(){
+  try{M.templates=(await api('/api/templates')).templates;renderSystemTemplates();}
+  catch(e){$('#systemTemplateList').textContent='系统模板加载失败';toast(e.message,true);}
+}
+async function applySystemTemplate(tpl){
+  if(M.busy||!M.live)return;
+  if(M.dirty&&!confirm('当前编辑器有未保存的修改，直接应用系统模板将覆盖设备灯光。继续吗？'))return;
+  if(!confirm(`将系统模板「${tpl.name}」应用到主板？它不会修改你的用户预设。`))return;
+  M.busy=true;refreshDraft();
+  try{
+    const result=await api('/api/templates/apply','POST',{id:tpl.id,expected_raw:M.live.raw});
+    M.dirty=false;M.undoAvailable=result.undo_available;
+    displayStatus(result.lighting);toast(`系统模板「${tpl.name}」已写入（固件回读通过）`);
+  }catch(e){toast('应用模板失败：'+e.message,true);}finally{M.busy=false;refreshDraft();}
+}
 async function loadPresets(){try{M.presets=(await api('/api/presets')).slots;renderPresets();}catch(e){toast(e.message,true);}}
 async function savePreset(slot){
   if(!M.draft)return;
@@ -261,7 +311,7 @@ async function savePreset(slot){
 }
 function loadPreset(slot){
   if(M.dirty && !confirm('覆盖尚未应用的草稿内容？此操作不会写入设备。'))return;
-  M.draft=cleanLighting(M.presets[slot-1].lighting);
+  M.draft=editingDraft(M.presets[slot-1].lighting);
   M.dirty=true;
   createColorEditor();refreshDraft();
   selectTab('lighting');
@@ -304,7 +354,7 @@ async function applyLighting(){
   if(!M.draft || M.busy || !M.dirty)return;
   M.busy=true;refreshDraft();
   try{
-    if(advancedRgbLocked()&&draftRequiresExperimental(M.draft))throw new Error('RGB 高级效果已锁定，请先恢复安全配置');
+    if(advancedRgbLocked()&&draftRequiresExperimental(M.draft))throw new Error('动效速度自定义已锁定，请恢复为速度 2');
     const result=await api('/api/lighting','POST',{...cleanLighting(M.draft),expected_raw:M.baselineRaw});
     M.dirty=false;M.undoAvailable=result.undo_available;displayStatus(result.lighting);
     toast('光效设置成功 · 固件回读验证通过');
@@ -407,12 +457,12 @@ function bind(){
   $$('[data-quick-color]').forEach(el=>el.style.setProperty('--swatch','#'+el.dataset.quickColor));
   $$('[data-view]').forEach(el=>el.addEventListener('click',()=>selectTab(el.dataset.view)));
   $$('[data-go]').forEach(el=>el.addEventListener('click',()=>selectTab(el.dataset.go)));
-  $('#refreshButton').addEventListener('click',()=>{loadStatus();loadPresets();loadSystem();toast('已请求刷新');});
+  $('#refreshButton').addEventListener('click',()=>{loadStatus();loadPresets();loadSystemTemplates();loadSystem();toast('已请求刷新');});
   $('#loginForm').addEventListener('submit',async evt=>{
     evt.preventDefault();const value=$('#tokenInput').value.trim();
     if(value.length<32){$('#loginError').textContent='令牌长度不正确';return;}
     M.token=value;
-    try{const data=await api('/api/status');sessionStorage.setItem('metacube-token',value);hideLogin();M.undoAvailable=Boolean(data.undo_available);displayStatus(data.lighting);loadPresets();loadSystem();toast('成功连接至 MetaCube');}
+    try{const data=await api('/api/status');sessionStorage.setItem('metacube-token',value);hideLogin();M.undoAvailable=Boolean(data.undo_available);displayStatus(data.lighting);loadPresets();loadSystemTemplates();loadSystem();toast('成功连接至 MetaCube');}
     catch(e){$('#loginError').textContent=e.message;}
   });
   $$('.mode-tile').forEach(el=>el.addEventListener('click',()=>{if(!M.draft)return;M.draft.mode=el.dataset.mode;M.dirty=true;refreshDraft();}));
@@ -438,12 +488,13 @@ function bind(){
   $('#undoLightingButton').disabled=true;
   $('#addColorButton').disabled=true;
   renderPresets();
+  renderSystemTemplates();
 }
 async function initial(){
   bind();
   if(!M.token){showLogin();return;}
   await loadStatus();
-  if(M.live){loadPresets();loadSystem();}
+  if(M.live){loadPresets();loadSystemTemplates();loadSystem();}
 }
 initial();
 setInterval(()=>{if(M.token&&!$('#loginDialog').open){loadStatus();if(['dashboard','system'].includes(M.tab))loadSystem();}},7000);

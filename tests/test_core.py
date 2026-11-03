@@ -82,16 +82,39 @@ class DeviceTests(unittest.TestCase):
                 self.device.lighting({'brightness':200})
             writer.assert_called_once()
 
-    def test_advanced_effects_blocked_before_sysfs_write(self):
+    def test_only_custom_speed_blocked_before_sysfs_write(self):
         (self.wmi/'ambient_apply').write_text('')
-        with patch.dict(os.environ, {'METACUBE_EXPERIMENTAL_RGB':'0'}), \
+        with patch.dict(os.environ, {'METACUBE_EXPERIMENTAL_RGB':'0',
+                                      'METACUBE_ALLOW_SPEED_CUSTOMIZATION':'0'}), \
              patch.object(self.device,'_write') as writer:
-            for change in ({'mode':'spin'}, {'speed':20}, {'direction':1},
-                           {'cycle':1}, {'transition':1},
-                           {'colors':['FF0000','00FF00']}):
-                with self.subTest(change=change), self.assertRaisesRegex(MetaCubeError,'Experimental RGB effect blocked'):
-                    self.device.lighting(change)
+            for speed in (0,1,20,255):
+                with self.subTest(speed=speed), self.assertRaisesRegex(MetaCubeError,'speed is locked'):
+                    self.device.lighting({'speed':speed})
             writer.assert_not_called()
+
+    def test_spin_multicolor_direction_cycle_transition_allowed_at_speed_two(self):
+        (self.wmi/'ambient_apply').write_text('')
+        def emulate(attr,value):
+            data=bytearray.fromhex((self.wmi/'ambient_raw').read_text().strip())
+            parts=value.split()
+            data[4]=int(parts[0]);data[24]=int(parts[1])
+            data[25:29]=bytes(map(int,parts[2:6]))
+            palette=parts[6].split(',')
+            data[5]=len(palette)
+            data[6:24]=bytes.fromhex(''.join(palette)).ljust(18,b'\x00')
+            (self.wmi/'ambient_raw').write_text(data.hex())
+        with patch.dict(os.environ, {'METACUBE_EXPERIMENTAL_RGB':'0',
+                                      'METACUBE_ALLOW_SPEED_CUSTOMIZATION':'0'}), \
+             patch.object(self.device,'_write',side_effect=emulate) as writer:
+            result=self.device.lighting({'mode':'spin','colors':['FF0000','00FF00'],
+                                         'speed':2,'direction':1,'cycle':8,'transition':1})
+            self.assertEqual(result['mode'],'spin')
+            self.assertEqual(result['colors'],['FF0000','00FF00'])
+            self.assertEqual(result['speed'],2)
+            self.assertEqual(result['direction'],1)
+            self.assertEqual(result['cycle'],8)
+            self.assertEqual(result['transition'],1)
+            writer.assert_called_once()
 
     def test_verified_breath_brightness_remains_allowed(self):
         (self.wmi/'ambient_apply').write_text('')
@@ -128,8 +151,12 @@ class DeviceTests(unittest.TestCase):
             plan=api.write('/api/lighting/plan',{'mode':'spin','speed':55})
             self.assertFalse(plan['can_apply'])
             self.assertGreater(len(plan['experimental_reasons']),0)
-            with self.assertRaisesRegex(MetaCubeError,'Experimental RGB effect blocked'):
+            with self.assertRaisesRegex(MetaCubeError,'speed is locked'):
                 api.write('/api/lighting',{'mode':'spin','speed':55})
+            allowed=api.write('/api/lighting/plan',{
+                'mode':'spin','colors':['112233','445566'],'speed':2,'direction':1,'cycle':2,'transition':1})
+            self.assertTrue(allowed['can_apply'])
+            self.assertEqual(allowed['experimental_reasons'],[])
 
     def test_oem_platform_requires_two_flags(self):
         (self.wmi/'oem_button_brightness').write_text('2\n')

@@ -38,40 +38,34 @@ HEX = re.compile(r'^[0-9A-F]{6}$')
 RAW = re.compile(r'^[0-9a-fA-F]{64}$')
 LOCK = threading.RLock()
 
-# Safe recovery subset confirmed on an actual MetaCube M11. Advanced OEM RGB
-# behavior is still unverified and previously caused loss of visible LED output
-# until a full AC power cycle. Firmware GET cannot confirm physical light output.
-SAFE_EFFECT_PARAMS = {'speed': 2, 'direction': 0, 'cycle': 0, 'transition': 0}
+# The unit recovered after an AC power cycle when changing the experimental
+# animation speed caused the LEDs to go dark. Keep default speed=2 for firmware
+# writes. Other RGB controls are user-requested but not all hardware-validated.
+# METACUBE_EXPERIMENTAL_RGB=1 remains as a backwards-compatible local override.
+SAFE_RGB_SPEED = 2
 UNSAFE_OEM_READS = {'keyboard_mode', 'keyboard_brightness'}
 
 
 def experimental_rgb_enabled() -> bool:
-    """Only the local service operator can opt in; web clients cannot unlock it."""
-    return os.environ.get('METACUBE_EXPERIMENTAL_RGB') == '1'
+    """Only the local service administrator may unlock custom speed values."""
+    return (os.environ.get('METACUBE_ALLOW_SPEED_CUSTOMIZATION') == '1' or
+            os.environ.get('METACUBE_EXPERIMENTAL_RGB') == '1')
 
 
 def rgb_experimental_reasons(target: dict) -> list[str]:
-    """Unverified effects which must not be written by default."""
-    reasons = []
-    if target['mode'] == 'spin':
-        reasons.append('rotation mode')
-    if len(target['colors']) != 1:
-        reasons.append('multi-color output')
-    for name, safe in SAFE_EFFECT_PARAMS.items():
-        if target[name] != safe:
-            reasons.append(f'{name}={target[name]} (safe baseline: {safe})')
-    return reasons
+    """Only nonbaseline animation speed is gated. Spin/multicolor remain usable."""
+    return ([f'speed={target["speed"]} (default locked to {SAFE_RGB_SPEED})']
+            if target['speed'] != SAFE_RGB_SPEED else [])
 
 
 def enforce_rgb_safety(target: dict):
     reasons = rgb_experimental_reasons(target)
     if reasons and not experimental_rgb_enabled():
         raise MetaCubeError(
-            'Experimental RGB effect blocked: ' + ', '.join(reasons) +
-            '. A previous advanced-effect test left LEDs dark until full AC power-off. '
-            'This safeguard can only be unlocked locally with '
-            'METACUBE_EXPERIMENTAL_RGB=1 (at your own risk). '
-            'Return to single-color breath/steady/off, speed=2, direction=0, cycle=0, transition=0.'
+            'Custom RGB animation speed is locked: ' + ', '.join(reasons) +
+            '. Restore speed=2, or opt in locally with '
+            'METACUBE_ALLOW_SPEED_CUSTOMIZATION=1. '
+            'Changing speed previously left LEDs dark until an AC power cycle.'
         )
     return reasons
 
@@ -219,6 +213,7 @@ class Device:
             'platform_writable': self.flag('allow_platform_writes'),
             'extended': (self.wmi_dir / 'ambient_apply').exists(),
             'rgb_experimental_enabled': experimental_rgb_enabled(),
+            'speed_customization_enabled': experimental_rgb_enabled(),
             'raw': raw.lower(),
         }
 

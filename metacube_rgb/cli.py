@@ -10,6 +10,7 @@ from .core import (Device, MODES, PERFORMANCE_MODES, MetaCubeError,
                    normalize_lighting, build_ambient_set_packet, _atomic_write,
                    rgb_experimental_reasons, experimental_rgb_enabled)
 from .web import DEFAULT_TOKEN, serve
+from .templates import system_templates, system_template
 
 
 def main(argv=None):
@@ -40,6 +41,9 @@ def main(argv=None):
     presets.add_argument('slot',nargs='?',type=int)
     presets.add_argument('--name',default='')
     presets.add_argument('--file',type=Path,help='JSON file for import/export')
+    templates=sub.add_parser('template',help='Built-in read-only system RGB templates')
+    templates.add_argument('action',choices=('list','apply'))
+    templates.add_argument('id',nargs='?',type=int)
     sub.add_parser('save',help='Save boot restore configuration')
     apply_cmd=sub.add_parser('apply',help='Apply saved boot restore configuration')
     apply_cmd.add_argument('--dry-run',action='store_true')
@@ -69,7 +73,7 @@ def main(argv=None):
                 print(f'Speed: {state["speed"]} | Direction: {state["direction"]}')
                 print(f'Cycle: {state["cycle"]} | Transition: {state["transition"]}')
                 print(f'Writable: {state["writable"]} | Platform writes: {state["platform_writable"]}')
-                print(f'Advanced RGB effects unlocked: {state["rgb_experimental_enabled"]}')
+                print(f'Custom animation speed unlocked: {state["speed_customization_enabled"]}')
                 print(f'Raw: {state["raw"]}')
         elif args.command in ('mode','color','brightness','speed','direction','cycle','transition'):
             payload={'colors':[args.value]} if args.command=='color' else {args.command:args.value}
@@ -129,6 +133,13 @@ def main(argv=None):
                     print(json.dumps(dev.lighting(storage.get(args.slot)),ensure_ascii=False))
                 else:
                     print(json.dumps(storage.update(args.slot,None),ensure_ascii=False))
+        elif args.command=='template':
+            if args.action=='list':
+                print(json.dumps(system_templates(),indent=2,ensure_ascii=False))
+            else:
+                if args.id is None:
+                    raise MetaCubeError('template apply requires an id (1..4)')
+                print(json.dumps(dev.lighting(system_template(args.id)),indent=2,ensure_ascii=False))
         elif args.command=='save':
             print('Saved:',save_boot_config(dev))
         elif args.command=='apply':
