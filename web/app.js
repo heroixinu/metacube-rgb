@@ -38,7 +38,7 @@ function selectTab(name){
   $$('.nav-item').forEach(btn=>btn.classList.toggle('selected',btn.dataset.view===name));
   $$('.view').forEach(el=>el.classList.toggle('active',el.id==='view-'+name));
   $('#pageBreadcrumb').textContent={dashboard:'设备总览',lighting:'光效工作室',system:'系统设置',diagnostics:'硬件诊断'}[name];
-  if(name==='system'){loadSystem();loadOemBasic();}
+  if(name==='system'){loadSystem();loadOemBasic();loadFans();}
   if(name==='dashboard')loadSystem();
 }
 function validateColor(candidate){return /^[A-Fa-f0-9]{6}$/.test(candidate)?candidate.toUpperCase():null;}
@@ -100,7 +100,7 @@ function previewLighting(state){
   stage.dataset.mode=state.mode;
   ring.style.setProperty('--ring-palette',ringGradientFor(colors,Boolean(state.transition)));
   ring.style.setProperty('--ring-intensity',String(intensity));
-  ring.style.setProperty('--ring-period',`${(1+((255-speed)/255)*7).toFixed(2)}s`);
+  ring.style.setProperty('--ring-period',`${(1+((10-Math.max(0,Math.min(10,speed)))/10)*7).toFixed(2)}s`);
   ring.style.setProperty('--ring-direction',state.direction===1?'reverse':'normal');
   document.documentElement.style.setProperty('--led','#'+colors[0]);
   ring.setAttribute('aria-label',`${labels[state.mode]||'未知'} · ${colors.length} 色 · 亮度 ${state.brightness}/255`);
@@ -121,7 +121,7 @@ function refreshDraft(){
   $$('.mode-tile').forEach(el=>el.classList.toggle('active',el.dataset.mode===M.draft.mode));
   for(const key of ['brightness','speed','cycle']){
     $(`#${key}Input`).value=M.draft[key];
-    $(`#${key}Value`).textContent=key==='cycle'?`${M.draft[key]} / 11`:String(M.draft[key]);
+    $(`#${key}Value`).textContent=key==='cycle'?`${M.draft[key]} / 11`:(key==='speed'?`${M.draft[key]} / 10`:String(M.draft[key]));
   }
   const level=M.draft.brightness===0?0:Math.min(10,Math.ceil(M.draft.brightness/26));
   $('#brightnessValue').textContent=`${M.draft.brightness}/255 · 原厂约 ${level}/10`;
@@ -237,7 +237,7 @@ function displayStatus(state){
   $$('[data-profile], [data-button-level]').forEach(btn=>btn.disabled=!state.platform_writable);
 }
 async function loadStatus(){
-  try{const data=await api('/api/status');hideLogin();M.undoAvailable=Boolean(data.undo_available);displayStatus(data.lighting);if(data.demo){$('#versionChip').textContent='v2.1 · DEMO';}else{$('#versionChip').textContent='v'+data.version;}}
+  try{const data=await api('/api/status');hideLogin();M.undoAvailable=Boolean(data.undo_available);displayStatus(data.lighting);if(data.demo){$('#versionChip').textContent='v2.2 · DEMO';}else{$('#versionChip').textContent='v'+data.version;}}
   catch(e){setDot(false);refreshDraft();if(M.token && !$('#loginDialog').open)toast(e.message,true);}
 }
 function renderPresets(){
@@ -384,7 +384,8 @@ async function inspectPacket(){
 
 function setGauge(name, percent, detail){
   const num=$(`#${name}Metric`), bar=$(`#${name}Bar`), desc=$(`#${name}Detail`);
-  // Optional gauges may be absent; do not prevent the host info panel from rendering.
+  // Optional metrics can be absent from the current template; do not abort
+  // the rest of the host-information panel when a gauge is not rendered.
   if(!num || !bar || !desc)return;
   num.textContent=Number.isFinite(percent)?String(Math.round(percent*10)/10):'—';
   bar.style.width=Number.isFinite(percent)?`${Math.max(0,Math.min(100,percent))}%`:'0%';
@@ -421,6 +422,23 @@ function renderSystem(data){
 }
 async function loadSystem(){
   try{const data=await api('/api/system');renderSystem(data);}catch(e){console.warn(e.message);}
+}
+function renderFans(data){
+  const present=Boolean(data&&data.available);
+  $('#mainFanRpm').textContent=present?String(data.main_rpm):'--';
+  $('#smallFanRpm').textContent=present?String(data.small_rpm):'--';
+  const source={metacube_oem_0x14:'OEM WMI 0x14 (MetaCube original)',
+                bitland_0x0d_fallback:'Generic WMI 0x0D (fallback)',
+                demo:'DEMO (simulated)',unavailable:'Unavailable'}[data?.source]||'Unknown';
+  $('#fanSourceNote').textContent=source+' | '+(data?.note||'No readings available');
+}
+let fanReading=false;
+async function loadFans(){
+  if(M.tab!=='system'||fanReading||!M.token||$('#loginDialog').open)return;
+  fanReading=true;
+  try{renderFans(await api('/api/fans'));}
+  catch(e){renderFans({available:false,source:'unavailable',note:e.message});}
+  finally{fanReading=false;}
 }
 function renderOem(data){
   M.oem=data;
@@ -500,3 +518,4 @@ async function initial(){
 }
 initial();
 setInterval(()=>{if(M.token&&!$('#loginDialog').open){loadStatus();if(['dashboard','system'].includes(M.tab))loadSystem();}},7000);
+setInterval(loadFans,2000); // OEM performance page fan refresh; no WMI writes

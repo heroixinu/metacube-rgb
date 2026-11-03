@@ -17,14 +17,14 @@ class FirmwarePacketTests(unittest.TestCase):
         original=bytearray.fromhex(CURRENT)
         original[29:32]=bytes.fromhex('ab12cd')
         lighting=normalize_lighting({'mode':'spin','colors':['FF0000','00FF00','0000FF','FFFFFF','FEDCBA','123456'],
-                                     'brightness':173,'speed':61,'direction':1,'cycle':11,'transition':1})
+                                     'brightness':173,'speed':6,'direction':1,'cycle':11,'transition':1})
         frame=bytes.fromhex(build_ambient_set_packet(original.hex(),lighting))
         self.assertEqual(len(frame),32)
         self.assertEqual(frame[0:4].hex(),'00fb000f')
         self.assertEqual(frame[4],4)
         self.assertEqual(frame[5],6)
         self.assertEqual(frame[6:24].hex(),'ff000000ff000000fffffffffedcba123456')
-        self.assertEqual(list(frame[24:29]),[173,61,1,11,1])
+        self.assertEqual(list(frame[24:29]),[173,6,1,11,1])
         self.assertEqual(frame[29:32].hex(),'ab12cd')
 
     def test_single_color_zeroes_unused_slots(self):
@@ -50,7 +50,7 @@ class RGBWorkflowTests(unittest.TestCase):
         current=self.device.state()
         with patch.object(self.device,'lighting',side_effect=AssertionError('No hardware writes!')):
             p=self.api.write('/api/lighting/plan',{'expected_raw':current['raw'],
-                           'mode':'spin','colors':['FF0000','00FF00'],'speed':220,'direction':1})
+                           'mode':'spin','colors':['FF0000','00FF00'],'speed':9,'direction':1})
         self.assertEqual(len(p['set_packet']),64)
         self.assertEqual(p['set_packet'][:8],'00fb000f')
         self.assertEqual(p['changes']['mode']['to'],'spin')
@@ -59,7 +59,7 @@ class RGBWorkflowTests(unittest.TestCase):
     def test_optimistic_concurrency_and_one_step_undo(self):
         original=self.device.state()
         changed=self.api.write('/api/lighting',{'expected_raw':original['raw'],
-                          'mode':'spin','colors':['FF0000','00FF00'],'speed':133})
+                          'mode':'spin','colors':['FF0000','00FF00'],'speed':7})
         self.assertEqual(changed['lighting']['mode'],'spin')
         self.assertTrue(changed['undo_available'])
         with self.assertRaises(MetaCubeConflict):

@@ -32,12 +32,12 @@ class DeviceTests(unittest.TestCase):
 
     def test_validate_multicolor_range(self):
         target=normalize_lighting({'colors':['FF0000','00FF00','0000FF'], 'mode':'spin',
-                                   'direction':1,'cycle':11,'transition':1, 'speed':240})
+                                   'direction':1,'cycle':11,'transition':1, 'speed':9})
         self.assertEqual(target['colors'],['FF0000','00FF00','0000FF'])
         self.assertEqual(target['cycle'],11)
         for payload in ({'colors':[]},{'colors':['FF0000']*7},
                         {'colors':['nothex']},{'mode':'x'},
-                        {'direction':2},{'brightness':256},{'cycle':-1},
+                        {'direction':2},{'speed':11},{'speed':255},{'brightness':256},{'cycle':-1},
                         {'unknown':1},{'brightness':True}):
             with self.subTest(payload=payload),self.assertRaises(MetaCubeError):
                 normalize_lighting(payload)
@@ -67,10 +67,10 @@ class DeviceTests(unittest.TestCase):
         with patch.dict(os.environ, {'METACUBE_EXPERIMENTAL_RGB':'1'}), \
              patch.object(self.device,'_write',side_effect=fake_write):
             result=self.device.lighting({'mode':'spin', 'colors':['FF0000','00FF00'],
-                                         'brightness':175,'speed':70,'direction':1,
+                                         'brightness':175,'speed':7,'direction':1,
                                          'cycle':7,'transition':1})
         self.assertEqual(len(calls),1,'Advanced control must issue one atomic SET')
-        self.assertEqual(calls[0][1],'4 175 70 1 7 1 FF0000,00FF00')
+        self.assertEqual(calls[0][1],'4 175 7 1 7 1 FF0000,00FF00')
         self.assertEqual(result['colors'],['FF0000','00FF00'])
         self.assertEqual(result['brightness'],175)
         self.assertEqual(result['direction'],1)
@@ -87,7 +87,7 @@ class DeviceTests(unittest.TestCase):
         with patch.dict(os.environ, {'METACUBE_EXPERIMENTAL_RGB':'0',
                                       'METACUBE_ALLOW_SPEED_CUSTOMIZATION':'0'}), \
              patch.object(self.device,'_write') as writer:
-            for speed in (0,1,20,255):
+            for speed in (0,1,3,10):
                 with self.subTest(speed=speed), self.assertRaisesRegex(MetaCubeError,'speed is locked'):
                     self.device.lighting({'speed':speed})
             writer.assert_not_called()
@@ -148,11 +148,11 @@ class DeviceTests(unittest.TestCase):
         state=api.read('/api/status')['lighting']
         self.assertFalse(state['rgb_experimental_enabled'])
         with patch.dict(os.environ, {'METACUBE_EXPERIMENTAL_RGB':'0'}):
-            plan=api.write('/api/lighting/plan',{'mode':'spin','speed':55})
+            plan=api.write('/api/lighting/plan',{'mode':'spin','speed':5})
             self.assertFalse(plan['can_apply'])
             self.assertGreater(len(plan['experimental_reasons']),0)
             with self.assertRaisesRegex(MetaCubeError,'speed is locked'):
-                api.write('/api/lighting',{'mode':'spin','speed':55})
+                api.write('/api/lighting',{'mode':'spin','speed':5})
             allowed=api.write('/api/lighting/plan',{
                 'mode':'spin','colors':['112233','445566'],'speed':2,'direction':1,'cycle':2,'transition':1})
             self.assertTrue(allowed['can_apply'])

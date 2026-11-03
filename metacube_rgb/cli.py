@@ -19,7 +19,7 @@ def main(argv=None):
     status=sub.add_parser('status',help='Read lighting status')
     status.add_argument('--json',action='store_true')
     for cmd,label in [('mode','breath/steady/spin/off'),('color','RRGGBB'),('brightness','0..255'),
-                      ('speed','0..255'),('direction','0/1'),('cycle','0..11'),('transition','0/1')]:
+                      ('speed','0..10 (OEM slider)'),('direction','0/1'),('cycle','0..11'),('transition','0/1')]:
         sp=sub.add_parser(cmd,help=f'Set {label}')
         sp.add_argument('value')
     atomic=sub.add_parser('set',help='Atomic RGB update; up to 6 colors and all OEM effect fields')
@@ -32,6 +32,7 @@ def main(argv=None):
     colors=sub.add_parser('colors',help='Set 1..6 RGB colors')
     colors.add_argument('values',nargs='+',help='RRGGBB colors')
     sub.add_parser('system',help='Display Linux host telemetry')
+    sub.add_parser('fans',help='Read-only OEM main/small fan RPM with source fallback')
     sub.add_parser('oem',help='Read optional OEM WMI status (explicit query)')
     platform=sub.add_parser('platform',help='Optional OEM platform control')
     platform.add_argument('kind',choices=('system_mode','button_brightness'))
@@ -99,6 +100,8 @@ def main(argv=None):
                 print(json.dumps(dev.lighting(changes,expected_raw=args.expected_raw),indent=2))
         elif args.command=='colors':
             print(json.dumps(dev.lighting({'colors':args.values}),indent=2))
+        elif args.command=='fans':
+            print(json.dumps(dev.fans(),indent=2,ensure_ascii=False))
         elif args.command=='system':
             from .metrics import Sampler
             print(json.dumps(Sampler().snapshot(),indent=2,ensure_ascii=False))

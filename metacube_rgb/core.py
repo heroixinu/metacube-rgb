@@ -123,7 +123,7 @@ def normalize_lighting(payload: dict[str, Any], current: dict | None = None) -> 
         if not isinstance(colors, list) or not 1 <= len(colors) <= 6:
             raise MetaCubeError('Supply 1..6 colors')
         result['colors'] = [color(c) for c in colors]
-    for key, maximum in [('brightness',255),('speed',255),('direction',1),
+    for key, maximum in [('brightness',255),('speed',10),('direction',1),
                          ('cycle',11),('transition',1)]:
         if key in payload:
             result[key] = number(payload[key], 0, maximum, key)
@@ -169,6 +169,8 @@ class Device:
     def __init__(self, wmi_dir: Path = WMI_DIR, module_dir: Path = MODULE_DIR):
         self.wmi_dir = Path(wmi_dir)
         self.module_dir = Path(module_dir)
+        self._fan_oem_probe_failed = False  # avoid repeated unsupported ACPI calls
+        self._fan_generic_probe_failed = False
 
     def _read(self, attr: str) -> str:
         try:
@@ -255,6 +257,60 @@ class Device:
                 raise MetaCubeError(f'Firmware readback mismatch: {", ".join(mismatch)}')
             return after
 
+    @staticmethod
+    def _decode_fan_pair(value: str):
+        parts = value.strip().split()
+        if len(parts) != 2:
+            raise ValueError('Expected two OEM fan RPM readings')
+        values = [int(x) for x in parts]
+        # An unsupported fan-control switch may return 0/1 rather than RPM.
+        # Never display these as real fan rotations; try the generic reader.
+        if not all((v == 0 or 200 <= v <= 18000) for v in values) or max(values) < 200:
+            raise ValueError('Invalid/ambiguous fan RPM values (possible firmware flags)')
+        return values
+
+    def fans(self) -> dict:
+        """Read-only OEM fan telemetry, preserving model-specific provenance.
+
+        WMI GET 0x14 on this model uses big-endian main/small values (driver
+        handles this). Generic Bitland WMI GET 0x0d is a fallback, using
+        little-endian CPU/GPU channels. Never issue a fan WMI SET.
+        """
+        with LOCK:
+            warning = ''
+            oem = self.wmi_dir / 'oem_fan_rpm_oem'
+            if oem.exists() and not self._fan_oem_probe_failed:
+                try:
+                    main, small = self._decode_fan_pair(self._read('oem_fan_rpm_oem'))
+                    return {'available':True, 'main_rpm':main, 'small_rpm':small,
+                            'source':'metacube_oem_0x14', 'poll_seconds':2,
+                            'manual_control':False,
+                            'note':'OEM GET 0x14 / big-endian, original Windows main/small channels'}
+                except (MetaCubeError, ValueError) as exc:
+                    self._fan_oem_probe_failed = True
+                    warning = f'OEM 0x14 unavailable: {exc}; '
+            elif self._fan_oem_probe_failed:
+                warning = 'OEM 0x14 probe failed earlier; skipped future ACPI calls; '
+            else:
+                warning = 'OEM 0x14 reader requires DKMS 2.2.0; '
+            if self._fan_generic_probe_failed:
+                return {'available':False, 'main_rpm':None, 'small_rpm':None,
+                        'source':'unavailable', 'poll_seconds':2,
+                        'manual_control':False,
+                        'note':warning+'Generic 0x0d probe also failed; skipped further ACPI calls until restart'}
+            try:
+                main, small = self._decode_fan_pair(self._read('oem_fan_rpm'))
+                return {'available':True, 'main_rpm':main, 'small_rpm':small,
+                        'source':'bitland_0x0d_fallback', 'poll_seconds':2,
+                        'manual_control':False,
+                        'note':warning+'Generic GET 0x0d CPU/GPU values; labels are not verified as OEM main/small'}
+            except (MetaCubeError, ValueError) as exc:
+                self._fan_generic_probe_failed = True
+                return {'available':False, 'main_rpm':None, 'small_rpm':None,
+                        'source':'unavailable', 'poll_seconds':2,
+                        'manual_control':False,
+                        'note':warning+f'Generic GET 0x0d unavailable: {exc}'}
+
     def read_oem(self, selected=None) -> dict:
         # Explicit user request only. Never poll these WMI functions in the background.
         names = selected if selected is not None else list(OEM_READS)
@@ -304,7 +360,7 @@ class Presets:
         self.path = Path(path)
 
     @classmethod
-    def validate_slots(cls, slots: Any) -> list:
+    def validate_slots(cls, slots: Any, allow_legacy_speed=False) -> list:
         if not isinstance(slots, list) or len(slots) != 5:
             raise MetaCubeError('Exactly 5 preset slots are required')
         verified = []
@@ -320,6 +376,11 @@ class Presets:
             lighting = slot['lighting']
             if not isinstance(lighting, dict) or set(lighting) != cls.KEYS:
                 raise MetaCubeError(f'Preset {i} must contain all 7 lighting fields')
+            # Older v2.1 builds allowed speed 11..255. Existing user JSON
+            # stays untouched on disk; in-memory views use safe speed=2.
+            # New imports and saves always enforce the genuine OEM 0..10 range.
+            if allow_legacy_speed and type(lighting['speed']) is int and 11 <= lighting['speed'] <= 255:
+                lighting = {**lighting, 'speed': SAFE_RGB_SPEED}
             verified.append({'name': name, 'lighting': normalize_lighting(lighting)})
         return verified
 
@@ -334,7 +395,7 @@ class Presets:
             raise MetaCubeError(f'Invalid presets file: {exc}') from exc
         if not isinstance(data, dict) or data.get('version') != 1 or set(data) != {'version', 'slots'}:
             raise MetaCubeError('Unsupported presets file format')
-        return self.validate_slots(data['slots'])
+        return self.validate_slots(data['slots'], allow_legacy_speed=True)
 
     def export(self) -> dict:
         return {'version': 1, 'slots': self.read()}

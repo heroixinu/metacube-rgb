@@ -56,7 +56,7 @@ class WebTests(unittest.TestCase):
         self.assertEqual(self.req('/api/lighting','POST',body={'brightness':10},origin='https://evil.example')[0],403)
 
     def test_write_and_presets(self):
-        result=self.req('/api/lighting','POST',body={'colors':['FF0000','00FF00'],'mode':'spin','speed':45})
+        result=self.req('/api/lighting','POST',body={'colors':['FF0000','00FF00'],'mode':'spin','speed':5})
         self.assertEqual(result[0],200)
         self.assertEqual(json.loads(result[1])['lighting']['colors'],['FF0000','00FF00'])
         self.assertEqual(self.req('/api/presets/save','POST',body={'slot':1,'name':'Demo'})[0],200)

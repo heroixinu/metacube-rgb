@@ -1,6 +1,32 @@
+# MetaCube RGB Web v2.2.0：还原原厂速度档位和风扇转速显示
+
+**本版变化：** 原厂 `SpinSpeedSlider` 速度范围为 0–10、整数步进、界面设计初始值 3；本机已验证安全值为 2，因此仍默认锁定速度 2。原厂性能页面显示「主风扇 / 小风扇」转速，每 2 秒只读刷新；新版内核驱动新增 GET 0x14（高字节在前）读取，失败时显示标记后的通用 GET 0x0D 回退值。
+
+**原厂程序未在此页面提供用户手动控制风扇 PWM 的滑块；本项目也不会增加未经验证的风扇写入操作。** 详细协议核查见 [原厂速度与风扇研究](docs/OEM_SPEED_FAN_AUDIT.md)。
+
+## v2.2.0 更新摘要
+
+- OEM Windows `SpinSpeedSlider`: `Minimum=0`, `Maximum=10`, default WPF UI value `3`, integer `SmallChange=1`. The original slider updates a draft packet; an explicit Apply submits the WMI SET. The Linux Web slider now matches 0..10, but stays locked to known-safe speed `2` unless the host administrator explicitly opts in.
+- OEM Windows performance page polls **Main Fan / Small Fan** RPM every **2 seconds**. The original executable queries `GET 0x14` and decodes each RPM using big-endian bytes. A new read-only 2.2.0 DKMS attribute plus `metacube-rgb fans` and the System Settings page reproduce this monitoring path. If unsupported, Linux falls back to generic `GET 0x0d` and states the data source explicitly.
+- The owner-supplied Windows program does **not** expose a manual fan PWM speed slider in its performance page. No Linux fan control SET was added: this would risk cooling a running PVE host and cannot be justified from the original UI.
+- The four system themes and five user preset slots remain separate. Legacy stored speeds above 10 are shown as safe speed 2 without rewriting the original file on read.
+- Full audit: [OEM_SPEED_FAN_AUDIT.md](docs/OEM_SPEED_FAN_AUDIT.md).
+
+## Update commands
+
+```bash
+cd /root/metacube-rgb
+git pull --ff-only
+# Web-only: retain existing DKMS 2.1.0; generic fan fallback only
+bash install.sh --web-only
+metacube-rgb fans
+# To enable the OEM GET 0x14 reader later, use a maintenance window:
+# bash install.sh --enable-writes
+```
+
 > **v2.1.3 本次更新：** 预览采用机身顶部发光圆环模型，支持呼吸/常亮/旋转/熄灭和多色分布。取消旋转、多色及方向等默认锁定；**仅自定义旋转/动效速度默认锁定为 2**。支持读取内置 4 套系统模板，和 5 个用户自定义槽位完全独立。系统模板直接来自你提供的 `metacube-rgb-presets-4-themes(1).json`，包括第一组原名“我的预设 1”。内置模板不能编辑或删除，但可以加载到编辑器或应用，也不会覆盖用户预设。
 
-# MetaCube RGB Web v2.1.3（圆环预览、系统模板、仅速度保护；DKMS 驱动保持 2.1.0）
+## v2.1.3 历史版本说明（圆环预览、系统模板、仅速度保护）
 
 这是针对 **METAPHYUNI MetaCube / M11 Series-HPT** 的 Linux 原生 WMI 控制中心。基于你提供的 Windows「玄机中枢」ControlCenter 安装包，独立实现原厂可见的机身 RGB 编辑界面、系统设置和监控能力。
 
@@ -29,7 +55,7 @@
 ## 包含哪些功能
 
 - `metacube-rgb web` 启动本地加密令牌认证的 Web 控制台，全部 HTML/CSS/JS 随源码提供，无需前端安装依赖。
-- 机身氛围灯：呼吸 / 常亮 / 旋转 / 关闭；1–6 色 RGB；亮度 0–255；旋转速度、方向；0–11 级颜色循环；渐变开关。支持**点击「应用到设备」后一次性写入**和 WMI 回读校验。
+- 机身氛围灯：呼吸 / 常亮 / 旋转 / 关闭；1–6 色 RGB；亮度 0–255；旋转速度 0–10（默认仅允许速度 2）、方向；0–11 级颜色循环；渐变开关。支持**点击「应用到设备」后一次性写入**和 WMI 回读校验。
 - 五个可保存/恢复的本地灯光预设，取代原 Windows 软件的 `.dat` 保存方式（无法直接导入 Windows 的二进制预设）。
 - 系统：静音 / 均衡 / Turbo 档位、按键灯 0–3 级；这两种写入**默认锁定**，需显式 `--enable-platform-writes` 才能开启；Turbo 额外要求固件确认圆口适配器。
 - 主机监控：Linux CPU 使用率 / 频率 / 负载、内存、磁盘、硬件温度与风扇；系统信息显示实际 PVE 主机而非虚拟机。
@@ -58,7 +84,7 @@ cd metacube-rgb
 bash install.sh --enable-writes
 ```
 
-**安装程序不会主动修改灯光或 PVE 引导配置。** 它先构建 v2.1 DKMS，确认编译后再替换现有的 v1.0 / v2.0 模块。成功时卸载旧 DKMS 版本的注册，避免未来两个版本同时构建；保留 `/usr/src/metacube-ambient-1.0.0` 作为旧版源码备份。不会删除 MOK 私钥或公钥。
+**安装程序不会主动修改灯光或 PVE 引导配置。** 它先构建 v2.2 DKMS，确认编译后再替换现有的 v1.0 / v2.0 模块。成功时卸载旧 DKMS 版本的注册，避免未来两个版本同时构建；保留 `/usr/src/metacube-ambient-1.0.0` 作为旧版源码备份。不会删除 MOK 私钥或公钥。
 
 如果只是维护当前 RGB 功能，**不要**在首次安装时加 `--enable-platform-writes`。若此前 v1 已设 `allow_writes=1`，省略参数会尝试继承现有权限；为明确起见仍建议显式提供 `--enable-writes`。
 
@@ -131,18 +157,18 @@ metacube-rgb brightness 160
 # 完整 RGB 参数设置
 metacube-rgb colors FF0000 00FF00 0000FF
 metacube-rgb mode spin
-metacube-rgb speed 45
+metacube-rgb speed 2  # 默认安全速度；其他速度需主动解锁
 metacube-rgb direction 1
 metacube-rgb cycle 6
 metacube-rgb transition 1
 
 # 先预检完整 32 字节 SET 数据包：不写入固件
 metacube-rgb set --mode spin --colors FF0000 00FF00 0000FF \
-  --brightness 160 --speed 45 --direction 0 --cycle 6 --transition 1 --dry-run
+  --brightness 160 --speed 2 --direction 0 --cycle 6 --transition 1 --dry-run
 
 # 一次 SET 更新完整 RGB 配置（维护窗口才执行）
 metacube-rgb set --mode spin --colors FF0000 00FF00 0000FF \
-  --brightness 160 --speed 45 --direction 0 --cycle 6 --transition 1
+  --brightness 160 --speed 2 --direction 0 --cycle 6 --transition 1
 
 # 5 组本地预设
 metacube-rgb preset save 1 --name '银河'
@@ -188,7 +214,7 @@ modinfo -F signer metacube_ambient
 metacube-rgb status
 ```
 
-应显示 `metacube-ambient/2.1.0` 已安装、签名者仍为 `DKMS module signing key`。未来更新 PVE 内核时需要新内核 Headers，否则 DKMS 不能成功构建。升级前请通过 `dkms status` 验证新内核条目。
+应显示 `metacube-ambient/2.2.0` 已安装、签名者仍为 `DKMS module signing key`。未来更新 PVE 内核时需要新内核 Headers，否则 DKMS 不能成功构建。升级前请通过 `dkms status` 验证新内核条目。
 
 卸载：
 

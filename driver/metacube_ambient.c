@@ -24,6 +24,7 @@
 #define FUNC_SYSTEM_MODE 0x08
 #define FUNC_BUTTON_LIGHT 0x19
 #define FUNC_FAN_RPM 0x0d
+#define FUNC_FAN_RPM_OEM 0x14 /* Original MetaCube GUI: GET only; NEVER SET */
 #define FUNC_AC_TYPE 0x13
 #define OP_GET 0xfa
 #define OP_SET 0xfb
@@ -465,6 +466,35 @@ static ssize_t oem_fan_rpm_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(oem_fan_rpm);
 
+/* Original MetaCube Windows ControlCenter reads method 0x14 every 2 sec
+ * while its performance page is active, interpreting bytes [4:5] and
+ * [6:7] as big-endian main/small fan RPM. This differs from the generic
+ * Bitland protocol's method 0x0d little-endian CPU/GPU/SYS values.
+ *
+ * The 0x14 command also has a writable meaning on OTHER Bitland models;
+ * never provide a write operation here. A read failure is reported as
+ * unsupported and userspace may fall back to the generic 0x0d reader.
+ */
+static ssize_t oem_fan_rpm_oem_show(struct device *dev,
+                                     struct device_attribute *attr, char *buf)
+{
+    struct metacube_ambient *ctx = dev_get_drvdata(dev);
+    u8 result[PACKET_SIZE];
+    unsigned int main_rpm, small_rpm;
+    int ret;
+
+    mutex_lock(&ctx->lock);
+    ret = mc_read_oem(ctx, FUNC_FAN_RPM_OEM, result);
+    mutex_unlock(&ctx->lock);
+    if (ret)
+        return ret;
+
+    main_rpm = ((unsigned int)result[4] << 8) | result[5];
+    small_rpm = ((unsigned int)result[6] << 8) | result[7];
+    return sysfs_emit(buf, "%u %u\n", main_rpm, small_rpm);
+}
+static DEVICE_ATTR_RO(oem_fan_rpm_oem);
+
 /* These two OEM controls require a distinct, explicit platform opt-in. */
 static int mc_set_oem_scalar(struct metacube_ambient *ctx, u8 function, u8 val)
 {
@@ -561,6 +591,7 @@ static struct attribute *metacube_ambient_attrs[] = {
     &dev_attr_oem_system_mode.attr,
     &dev_attr_oem_button_brightness.attr,
     &dev_attr_oem_fan_rpm.attr,
+    &dev_attr_oem_fan_rpm_oem.attr,
     &dev_attr_oem_gpu_mode.attr,
     &dev_attr_oem_fn_lock.attr,
     &dev_attr_oem_touchpad_lock.attr,
@@ -614,5 +645,5 @@ module_wmi_driver(metacube_ambient_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("MetaCube OEM WMI controller: ambient RGB and gated OEM settings");
-MODULE_VERSION("2.1.0");
+MODULE_VERSION("2.2.0");
 MODULE_AUTHOR("OpenAI ChatGPT (reverse engineering aid)");

@@ -68,7 +68,7 @@ class SystemTemplateTests(unittest.TestCase):
                 system_template(bad)
 
     def test_custom_speed_blocked_even_when_applying_user_preset(self):
-        self.store.update(1,{**self.device.state(), 'speed':250},'unsafe stored preset')
+        self.store.update(1,{**self.device.state(), 'speed':8},'unsafe stored preset')
         with patch.dict(os.environ,{'METACUBE_EXPERIMENTAL_RGB':'0',
                                     'METACUBE_ALLOW_SPEED_CUSTOMIZATION':'0'}):
             # Actual policy is in Device.lighting. Use a fake sysfs state to check gate.

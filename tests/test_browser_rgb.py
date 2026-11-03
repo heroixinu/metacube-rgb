@@ -100,10 +100,15 @@ def main():
             page.locator('#undoLightingButton').click()
             # need click after dialog handler registration, otherwise confirm may remain
             page.wait_for_timeout(100)
-            # Regression: missing optional metric gauges must not break system info.
+            # The system information must render even when optional GPU/net
+            # gauge cards do not exist in the dashboard template.
             page.locator('[data-view="system"]').click()
             page.locator('#systemInfo .info-item').first.wait_for(timeout=4000)
             assert page.locator('#systemInfo .info-item').count() >= 6
+            page.locator('[data-view="system"]').click()
+            page.locator('#mainFanRpm').get_by_text('2380').wait_for(timeout=5000)
+            assert page.locator('#smallFanRpm').inner_text()=='1740'
+            assert page.locator('#speedInput').get_attribute('max')=='10'
             assert not errors,errors
             print('Chrome RGB mock-browser smoke tests passed; screenshot created')
             browser.close()

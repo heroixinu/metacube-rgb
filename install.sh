@@ -3,8 +3,8 @@
 set -Eeuo pipefail
 
 PKG='metacube-ambient'
-VER='2.1.0'
-OLD='1.0.0'  # detected below: v1.0 or v2.0 predecessor
+VER='2.2.0'
+OLD='1.0.0'  # detected below: v1, v2.0 or v2.1 predecessor
 MODULE='metacube_ambient'
 GUID='B60BFB48-3E5B-49E4-A0E9-8CFFE1B3434B'
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -208,9 +208,12 @@ if [[ "$WRITES" -eq 0 && "$PLATFORM" -eq 1 ]]; then fail 'Platform writes also r
 
 # Select the previously installed module, if any. Do not remove a wrong version
 # when the host has both v1 and v2 source registrations.
-if [[ "$(dkms status -m "$PKG" -v '2.0.0' -k "$KERNEL" 2>/dev/null || true)" == *': installed'* ]]; then
-  OLD='2.0.0'
-fi
+for candidate in 2.1.0 2.0.0 1.0.0; do
+  if [[ "$(dkms status -m "$PKG" -v "$candidate" -k "$KERNEL" 2>/dev/null || true)" == *': installed'* ]]; then
+    OLD="$candidate"
+    break
+  fi
+done
 snapshot_managed_paths
 info "Preparing DKMS v$VER; build occurs before touching the running module"
 if [[ ! -d "$SRC" ]]; then
@@ -271,7 +274,7 @@ if [[ -d "/sys/module/$MODULE" ]]; then
   rmmod "$MODULE" || fail 'Unable to unload old module; aborting activation'
 fi
 modprobe "$MODULE" || fail 'Unable to load signed v2 module'
-[[ -r "$WMI/ambient_raw" && -r "$WMI/ambient_apply" ]] || fail 'The expected WMI sysfs attributes were not created'
+[[ -r "$WMI/ambient_raw" && -r "$WMI/ambient_apply" && -r "$WMI/oem_fan_rpm_oem" ]] || fail 'Expected RGB and OEM fan-monitor sysfs attributes were not created'
 [[ "$(cat /sys/module/$MODULE/parameters/allow_writes)" == "$([[ "$WRITES" == '1' ]] && echo Y || echo N)" ]] || fail 'RGB write flag mismatch'
 [[ "$(cat /sys/module/$MODULE/parameters/allow_platform_writes)" == "$([[ "$PLATFORM" == '1' ]] && echo Y || echo N)" ]] || fail 'Platform write flag mismatch'
 MODULE_SWITCHED=1

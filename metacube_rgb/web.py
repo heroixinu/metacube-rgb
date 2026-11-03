@@ -12,6 +12,7 @@ import socket
 import subprocess
 import sys
 import threading
+import time
 from urllib.parse import urlsplit
 from . import __version__
 from .core import (Device, MetaCubeError, MetaCubeConflict, Presets, normalize_lighting,
@@ -31,7 +32,7 @@ DEFAULT_TOKEN = Path('/etc/metacube-rgb/web.token')
 class DemoDevice(Device):
     def __init__(self):
         self._current = {'mode':'breath','colors':['50DCFA','8057FF','FF548B'],
-                         'brightness':160,'speed':45,'direction':0,'cycle':5,'transition':1}
+                         'brightness':160,'speed':2,'direction':0,'cycle':5,'transition':1}
 
     def flag(self, name):
         return name == 'allow_writes'
@@ -63,6 +64,11 @@ class DemoDevice(Device):
         self._current = normalize_lighting(changes, self._current)
         return self.state()
 
+    def fans(self):
+        return {'available':True, 'main_rpm':2380, 'small_rpm':1740,
+                'source':'demo', 'poll_seconds':2, 'manual_control':False,
+                'note':'Simulated fan telemetry, no WMI access'}
+
     def read_oem(self, selected=None):
         from .core import OEM_READS
         return {name:{'unsupported':True,'reason':'Demo mode: no OEM WMI call made'}
@@ -81,12 +87,23 @@ class Api:
         self._lock = threading.RLock()
         self._undo_before = None
         self._undo_after = None
+        self._fan_last = None
+        self._fan_last_at = 0.0
 
     def read(self, path):
         if path == '/api/health':
             return {'version': __version__, 'service':'ready'}
         if path == '/api/status':
             return {'lighting':self.device.state(), 'version':__version__, 'demo':self.demo, 'undo_available':self._undo_before is not None}
+        if path == '/api/fans':
+            # At most one physical ACPI probe every two seconds per Web server,
+            # even when multiple browsers are watching the performance page.
+            with self._lock:
+                now = time.monotonic()
+                if self._fan_last is None or now - self._fan_last_at >= 2.0:
+                    self._fan_last = self.device.fans()
+                    self._fan_last_at = now
+                return self._fan_last
         if path == '/api/system':
             with self._lock:
                 return self.sampler.snapshot()

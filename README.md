@@ -1,4 +1,13 @@
-# MetaCube RGB Web v2.1.3 — LED ring preview, system templates, speed-only guard
+# MetaCube RGB Web v2.2.0 - OEM speed and fan readout parity
+
+- **RGB speed:** original WPF slider is **0..10** (initial UI value 3, integer step 1), not 0..255. Linux preserves `speed=2` as the default firmware-write safety limit because of the earlier LED freeze.
+- **Fan RPM:** the Windows performance page shows **Main Fan** and **Small Fan** RPM, polling once every **2 seconds** using a model-specific read-only **GET 0x14** (two big-endian RPM values). Linux v2.2 adds the same readout to System Settings and `metacube-rgb fans`; if unavailable, it clearly labels a fallback generic `GET 0x0d` reading.
+- **No manual fan control:** the supplied original Windows performance UI does not expose a fan PWM slider. This Linux release also performs **zero fan writes**; generic Bitland `0x14/0x15` SET behavior is not assumed safe for this M11 firmware.
+- **DKMS module is now 2.2.0** for the OEM fan reader; Web-only updating remains supported with a clearly labeled fallback. See [OEM speed/fan audit](docs/OEM_SPEED_FAN_AUDIT.md).
+
+Existing PVE installation: back up current settings, then `git pull --ff-only` and `bash install.sh --enable-writes` for DKMS 2.2.0, or `bash install.sh --web-only` if you wish to keep the installed 2.1.0 kernel driver (only fallback fan readings available).
+
+## v2.1.3 historical release — LED ring preview, system templates, speed-only guard
 
 Web-only update; DKMS kernel module remains 2.1.0.
 
@@ -8,7 +17,7 @@ Web-only update; DKMS kernel module remains 2.1.0.
 - `GET /api/templates`, `POST /api/templates/apply`, `metacube-rgb template list`, `metacube-rgb template apply ID`.
 - No hardware WMI changes. Host-only files can be installed with `bash install.sh --web-only`.
 
-# MetaCube RGB Web v2.1.2 (incident safeguard; DKMS driver remains 2.1.0)
+## Earlier v2.1.x releases (historical notes)
 
 Independent Linux/PVE WMI RGB control center for **METAPHYUNI MetaCube M11 Series-HPT**, based on static analysis of the user-supplied Windows `ControlCenter` (.NET `玄机中枢`) application. **Not the OEM Windows driver.**
 
@@ -70,7 +79,7 @@ The `--web-only` path does not uninstall, reload, rebuild or re-sign the kernel 
 
 ```bash
 # Creates a 32-byte SET preview but NEVER writes hardware:
-metacube-rgb set --mode spin --colors FF0000 00FF00 --brightness 160 --speed 45 --direction 0 --cycle 6 --transition 1 --dry-run
+metacube-rgb set --mode spin --colors FF0000 00FF00 --brightness 160 --speed 2 --direction 0 --cycle 6 --transition 1 --dry-run
 # v2.1.2 deliberately BLOCKS the advanced write unless the host operator explicitly opts in.
 # The dry-run preview never writes firmware.
 ```

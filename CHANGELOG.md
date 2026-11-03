@@ -1,3 +1,15 @@
+# Changelog
+
+## 2.2.0 - OEM speed & two-fan monitor alignment
+
+- Reverse-inspected the supplied Windows WPF BAML and IL: animation-speed slider is **0..10**, initial UI value 3, integer step 1. Updates a draft on mouse-up; actual WMI SET is performed only on explicit Apply.
+- Match browser/CLI input range 0..10 while keeping **speed=2** as the default firmware-write limit following the owner's LED failure incident.
+- Implement original Windows *read-only* main/small fan RPM monitor: 2 second polling on the system/performance page, WMI **GET 0x14** with big-endian two-channel decoding (DKMS 2.2.0).
+- Retain safe fallback to earlier `GET 0x0d` little-endian readings; label its source and stop retrying an OEM ACPI method after an unsupported response.
+- Add `GET /api/fans` and `metacube-rgb fans`, zero fan SET/PWM controls.
+- Keep previous five user presets intact; out-of-range legacy speed values are represented as safe speed 2 in memory without silently rewriting the original JSON file.
+- Source comparison and hardware limitations in [OEM_SPEED_FAN_AUDIT.md](docs/OEM_SPEED_FAN_AUDIT.md).
+
 ## v2.1.3 (Web/CLI only; kernel v2.1.0)
 
 - Visualize the real MetaCube top-cover **LED ring**, with conic gradients and mode-dependent ring animations (breath/steady/spin/off).
@@ -6,7 +18,6 @@
 - New read/apply system template API and CLI; `--web-only` installer now ships the bundled catalog.
 - Add tests for speed-only safety and system-template isolation.
 
-# Changelog
 
 ## 2.1.2 — Firmware LED output incident: experimental RGB safeguard
 

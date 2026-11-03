@@ -76,3 +76,14 @@
 
 .preview-stage[data-mode="off"]{background:linear-gradient(158deg,#171a24,#090c12 82%)}
 .preview-stage[data-mode="off"] .preview-ellipse{opacity:.08}
+
+/* Original ControlCenter main/small fan RPM, monitored only on the performance page. */
+.fan-monitor-card .section-copy{margin:5px 0 20px}
+.fan-rpm-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.fan-rpm-item{padding:19px 20px;background:linear-gradient(135deg,#151b26,#101720);border:1px solid #30404d;border-radius:13px}
+.fan-rpm-item small{font-size:11px;letter-spacing:.08em;color:#8e9caf}
+.fan-rpm-number{display:flex;align-items:baseline;gap:10px;margin-top:8px}
+.fan-rpm-number strong{font:650 clamp(29px,4vw,43px)/1.2 ui-sans-serif,system-ui;color:#e7f5ff;font-variant-numeric:tabular-nums}
+.fan-rpm-number span{font-size:12px;color:#80aeaf;letter-spacing:.1em}
+.fan-monitor-card #fanSourceNote{overflow-wrap:anywhere;margin-top:14px;line-height:1.65}
+@media(max-width:540px){.fan-rpm-grid{grid-template-columns:1fr}}
