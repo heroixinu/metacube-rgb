@@ -109,6 +109,20 @@ def main():
             page.locator('#mainFanRpm').get_by_text('2380').wait_for(timeout=5000)
             assert page.locator('#smallFanRpm').inner_text()=='1740'
             assert page.locator('#speedInput').get_attribute('max')=='10'
+            assert page.locator('#brightnessInput').get_attribute('max')=='10'
+            assert page.locator('#acPowerStatus').inner_text().find('在线')>=0
+            assert page.locator('#profileCurrent').inner_text().find('均衡')>=0
+            assert page.locator('[data-profile="0"]').is_disabled() # OEM profile writes disabled in demo
+            assert page.locator('#mainFanSpark').count()==1
+            assert page.locator('#smallFanSpark').count()==1
+            page.locator('[data-view="lighting"]').click()
+            # Pixel-accurate OEM 0..10 brightness conversion while editing in memory.
+            page.locator('#brightnessInput').fill('10')
+            page.locator('#brightnessInput').dispatch_event('input')
+            assert '255/255' in page.locator('#brightnessValue').inner_text()
+            page.locator('#brightnessInput').fill('0')
+            page.locator('#brightnessInput').dispatch_event('input')
+            assert '0/255' in page.locator('#brightnessValue').inner_text()
             assert not errors,errors
             print('Chrome RGB mock-browser smoke tests passed; screenshot created')
             browser.close()

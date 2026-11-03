@@ -38,7 +38,7 @@ function selectTab(name){
   $$('.nav-item').forEach(btn=>btn.classList.toggle('selected',btn.dataset.view===name));
   $$('.view').forEach(el=>el.classList.toggle('active',el.id==='view-'+name));
   $('#pageBreadcrumb').textContent={dashboard:'设备总览',lighting:'光效工作室',system:'系统设置',diagnostics:'硬件诊断'}[name];
-  if(name==='system'){loadSystem();loadOemBasic();loadFans();}
+  if(name==='system'){loadSystem();loadOemBasic();loadProfileStatus();loadFans();}
   if(name==='dashboard')loadSystem();
 }
 function validateColor(candidate){return /^[A-Fa-f0-9]{6}$/.test(candidate)?candidate.toUpperCase():null;}
@@ -119,12 +119,15 @@ function discardDraft(){
 function refreshDraft(){
   if(!M.draft)return;
   $$('.mode-tile').forEach(el=>el.classList.toggle('active',el.dataset.mode===M.draft.mode));
-  for(const key of ['brightness','speed','cycle']){
+  for(const key of ['speed','cycle']){
     $(`#${key}Input`).value=M.draft[key];
-    $(`#${key}Value`).textContent=key==='cycle'?`${M.draft[key]} / 11`:(key==='speed'?`${M.draft[key]} / 10`:String(M.draft[key]));
+    $(`#${key}Value`).textContent=key==='cycle'?`${M.draft[key]} / 11`:`${M.draft[key]} / 10`;
   }
+  // OEM display = ceil(raw / 26), actual SET byte changes only if slider moves.
+  // This preserves existing precise 0..255 CLI/firmware brightness when editing colors.
   const level=M.draft.brightness===0?0:Math.min(10,Math.ceil(M.draft.brightness/26));
-  $('#brightnessValue').textContent=`${M.draft.brightness}/255 · 原厂约 ${level}/10`;
+  $('#brightnessInput').value=level;
+  $('#brightnessValue').textContent=`${level}/10 · 实际 ${M.draft.brightness}/255`;
   $('#transitionInput').checked=Boolean(M.draft.transition);
   $$('[data-direction]').forEach(el=>el.classList.toggle('active',Number(el.dataset.direction)===M.draft.direction));
   $('#previewModeText').textContent=(labels[M.draft.mode]||'未知')+'模式';
@@ -234,10 +237,12 @@ function displayStatus(state){
   $('#heroColors').textContent=String(state.color_count);
   $('#platformBadge').textContent=state.platform_writable?'已授权':'默认锁定';
   $('#platformBadge').classList.toggle('unlocked',state.platform_writable);
-  $$('[data-profile], [data-button-level]').forEach(btn=>btn.disabled=!state.platform_writable);
+  $$('[data-button-level]').forEach(btn=>btn.disabled=!state.platform_writable);
+  // Profile buttons are guarded by AC-online status and explicit platform opt-in.
+  if(!state.platform_writable)$$('[data-profile]').forEach(btn=>btn.disabled=true);
 }
 async function loadStatus(){
-  try{const data=await api('/api/status');hideLogin();M.undoAvailable=Boolean(data.undo_available);displayStatus(data.lighting);if(data.demo){$('#versionChip').textContent='v2.2 · DEMO';}else{$('#versionChip').textContent='v'+data.version;}}
+  try{const data=await api('/api/status');hideLogin();M.undoAvailable=Boolean(data.undo_available);displayStatus(data.lighting);if(data.demo){$('#versionChip').textContent='v2.3 · DEMO';}else{$('#versionChip').textContent='v'+data.version;}}
   catch(e){setDot(false);refreshDraft();if(M.token && !$('#loginDialog').open)toast(e.message,true);}
 }
 function renderPresets(){
@@ -423,10 +428,26 @@ function renderSystem(data){
 async function loadSystem(){
   try{const data=await api('/api/system');renderSystem(data);}catch(e){console.warn(e.message);}
 }
+const fanSamples={main:[],small:[]}; // 30 samples * 2s = last minute
+function fanTrend(id,values){
+  const poly=$(id);
+  if(values.length<2){poly.setAttribute('points','');return;}
+  const min=Math.min(...values),max=Math.max(...values),range=Math.max(250,max-min);
+  poly.setAttribute('points',values.map((v,i)=>`${(i*239/(29)).toFixed(2)},${(51-(v-min)/range*46).toFixed(2)}`).join(' '));
+}
 function renderFans(data){
   const present=Boolean(data&&data.available);
   $('#mainFanRpm').textContent=present?String(data.main_rpm):'--';
   $('#smallFanRpm').textContent=present?String(data.small_rpm):'--';
+  if(present){
+    for(const [k,v] of [['main',data.main_rpm],['small',data.small_rpm]]){
+      if(Number.isFinite(v)){
+        fanSamples[k].push(v);
+        if(fanSamples[k].length>30)fanSamples[k].shift();
+        fanTrend(k==='main'?'#mainFanSpark':'#smallFanSpark',fanSamples[k]);
+      }
+    }
+  }
   const source={metacube_oem_0x14:'OEM WMI 0x14 (MetaCube original)',
                 bitland_0x0d_fallback:'Generic WMI 0x0D (fallback)',
                 demo:'DEMO (simulated)',unavailable:'Unavailable'}[data?.source]||'Unknown';
@@ -439,6 +460,34 @@ async function loadFans(){
   try{renderFans(await api('/api/fans'));}
   catch(e){renderFans({available:false,source:'unavailable',note:e.message});}
   finally{fanReading=false;}
+}
+let profileStatus=null;
+function renderProfileStatus(data){
+  profileStatus=data;
+  const ac=data.power?.ac_online;
+  const acLabel=ac===true?'交流电源在线 · Turbo 可选':ac===false?'未检测到在线 AC · Turbo 不可选':'交流电源状态未知 · Turbo 不可选';
+  $('#acPowerStatus').textContent=acLabel;
+  $('#acPowerStatus').classList.toggle('offline',ac!==true);
+  const p=data.profile;
+  $('#profileCurrent').textContent=p&&!p.unsupported
+    ?'当前性能档位：'+({0:'狂暴',1:'均衡',2:'静音'}[p.value]||`未知 ${p.value}`)
+    :'当前档位：原厂 WMI 未返回有效结果';
+  $$('[data-profile]').forEach(btn=>{
+    const id=Number(btn.dataset.profile);
+    btn.disabled=!data.write_enabled||(id===0&&ac!==true);
+    btn.classList.toggle('active',Boolean(p&&!p.unsupported&&p.value===id));
+    if(id===0)btn.title=ac===true?'Turbo 需要确认':'原厂要求交流电源在线';
+  });
+}
+async function loadProfileStatus(){
+  try{renderProfileStatus(await api('/api/profile'));}
+  catch(e){
+    profileStatus=null;
+    $('#acPowerStatus').textContent='交流电源检测失败 · Turbo 已阻止';
+    $('#profileCurrent').textContent='性能模式查询失败';
+    $$('[data-profile]').forEach(btn=>btn.disabled=true);
+    console.warn('OEM profile status: '+e.message);
+  }
 }
 function renderOem(data){
   M.oem=data;
@@ -468,9 +517,20 @@ async function probeOem(){
 }
 async function setPlatform(control,value){
   const title=control==='system_mode'?'系统性能档位':'按键灯亮度';
-  if(!confirm(`要修改${title}为 ${value} 吗？\n该功能尚未在本机验证，可能影响设备状态。`))return;
-  try{const data=await api('/api/platform','POST',{control,value});toast(title+'已通过固件回读验证');loadOemBasic();}
-  catch(e){toast(e.message,true);}
+  if(control==='system_mode'){
+    if(!profileStatus?.write_enabled){toast('请先在宿主机授权 --enable-platform-writes',true);return;}
+    if(value===0){
+      if(profileStatus.power?.ac_online!==true){toast('原厂限制：必须检测到交流电源在线，才能使用狂暴模式',true);return;}
+      if(!confirm('狂暴模式（Turbo）会改变主板的功耗和风扇策略，可能导致温度和噪音上升。\n原厂程序也会弹出确认。是否继续？'))return;
+    }
+    // Quiet and Balanced are direct buttons in the OEM GUI.
+  }else if(!confirm(`要修改${title}为 ${value} 吗？\n该功能尚未在本机验证。`))return;
+  try{
+    await api('/api/platform','POST',{control,value});
+    toast(title+'已提交 · WMI 回读一致（不代表已独立验证散热行为）');
+    loadOemBasic();
+    if(control==='system_mode')loadProfileStatus();
+  }catch(e){toast(e.message,true);}
 }
 function bind(){
   $('#todayText').textContent=new Date().toLocaleDateString('zh-CN',{year:'numeric',month:'2-digit',day:'2-digit'});
@@ -487,7 +547,13 @@ function bind(){
   });
   $$('.mode-tile').forEach(el=>el.addEventListener('click',()=>{if(!M.draft)return;M.draft.mode=el.dataset.mode;M.dirty=true;refreshDraft();}));
   $$('[data-direction]').forEach(el=>el.addEventListener('click',()=>{if(!M.draft)return;M.draft.direction=Number(el.dataset.direction);M.dirty=true;refreshDraft();}));
-  for(const key of ['brightness','speed','cycle'])$('#'+key+'Input').addEventListener('input',event=>{if(!M.draft)return;M.draft[key]=Number(event.target.value);M.dirty=true;refreshDraft();});
+  $('#brightnessInput').addEventListener('input',event=>{
+    if(!M.draft)return;
+    const level=Number(event.target.value);
+    M.draft.brightness=Math.min(255,Math.max(0,Math.round(level)*26));
+    M.dirty=true;refreshDraft();
+  });
+  for(const key of ['speed','cycle'])$('#'+key+'Input').addEventListener('input',event=>{if(!M.draft)return;M.draft[key]=Number(event.target.value);M.dirty=true;refreshDraft();});
   $('#transitionInput').addEventListener('change',e=>{if(!M.draft)return;M.draft.transition=e.target.checked?1:0;M.dirty=true;refreshDraft();});
   $('#addColorButton').addEventListener('click',()=>{if(!M.draft||M.draft.colors.length>=6)return;M.draft.colors.push('FFFFFF');M.dirty=true;createColorEditor();refreshDraft();});
   $$('[data-quick-color]').forEach(el=>el.addEventListener('click',()=>{if(!M.draft)return;M.draft.colors[0]=el.dataset.quickColor;M.dirty=true;createColorEditor();refreshDraft();}));

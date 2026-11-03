@@ -1,3 +1,36 @@
+# MetaCube RGB v2.3.0 — 原厂 RGB / 风扇 / 性能模式对齐
+
+> 本次升级涉及 DKMS 驱动 2.3.0。**不默认解锁风扇调速或性能模式写入**；默认继续只读监控。你之前的 RGB 速度故障后，我们保留速度 2 的默认安全锁。
+
+## 本轮完成
+
+- **RGB 亮度：** 原厂 WPF `OverLightSlider` 为 0–10，鼠标松开后调用 `SetData_OverLight`，发送 `min(255, 档位*26)`。Web 已用同样的档位和转换；CLI 仍保留 0..255 的精确控制，编辑其他参数不会意外把 160 改为 182。
+- **RGB 速度：** 继续采用原厂 0..10 档、松开/确认后写入，不允许在 Web 上每个拖动事件直接 WMI SET；非速度 2 的写入仍需管理员主动启用 `METACUBE_ALLOW_SPEED_CUSTOMIZATION=1`。
+- **风扇转速：** 原厂只有主/小风扇 RPM 读取（GET 0x14，大端）和 2 秒一次的性能页刷新。本版增加浏览器内一分种 RPM 趋势图，仍然不发任何风扇写入。
+- **性能模式：** 原厂静音 `2`、均衡 `1`、狂暴 `0`。原厂 `TurboMode_Click` 检查 Windows `GetSystemPowerStatus().LineStatus==1`（在线 AC），而不是 WMI 供电插头类型。Linux 已修正为 `power_supply_is_system_supplied()` 检查，Web 显示供电状态，Turbo 弹窗二次确认。
+- **系统功能写入**：仍需明确安装时指定 `--enable-platform-writes`，默认保持锁定；性能模式实机行为尚待你的 M11 验证。
+
+**原厂没有找到独立的用户风扇 PWM 调速滑块。** 通用 Bitland 驱动文档所示 `0x14/0x15` 写入用于其他机型，不能当成这台 M11 的已经验证功能。请先用 `metacube-rgb fans` 与 `metacube-rgb profile` 获取实机数据。详见 [原厂性能/风扇核对](docs/OEM_PERFORMANCE_FAN_PARITY.md)。
+
+## PVE 升级（维护窗口）
+
+```bash
+cd /root/metacube-rgb
+metacube-rgb status --json > /root/metacube-rgb-before-v230.json
+# 用原始操作记录当前 DKMS 和性能状态
+modinfo -F version metacube_ambient
+# 拉取并编译已签名 DKMS，默认不启用性能档位写入
+git pull --ff-only
+bash install.sh --enable-writes
+modinfo -F version metacube_ambient
+metacube-rgb fans
+metacube-rgb profile
+```
+
+运行 Web：`metacube-rgb web`，或者使用已经配置的 systemd 服务。此次更新**不需要、也不建议**通过 `--enable-platform-writes` 进行首次测试。等 `metacube-rgb profile` 的只读输出确认数据可用后，再在维护窗口考虑启用写入，并重点观察温度与风扇 RPM。
+
+---
+
 # MetaCube RGB Web v2.2.0：还原原厂速度档位和风扇转速显示
 
 **本版变化：** 原厂 `SpinSpeedSlider` 速度范围为 0–10、整数步进、界面设计初始值 3；本机已验证安全值为 2，因此仍默认锁定速度 2。原厂性能页面显示「主风扇 / 小风扇」转速，每 2 秒只读刷新；新版内核驱动新增 GET 0x14（高字节在前）读取，失败时显示标记后的通用 GET 0x0D 回退值。

@@ -1,3 +1,13 @@
+## 2.3.0 — Windows WPF OEM alignment (RGB / performance / fans)
+
+- True WPF brightness 0–10 slider, byte mapping `min(level*26,255)`; preserve existing precise raw brightness if no slider input.
+- Re-align Turbo's AC check from WMI adapter connector type to Windows `LineStatus == 1` / Linux supplied state.
+- Add read-only `metacube-rgb profile` and `/api/profile` (current mode / AC status / write-gate information).
+- Active mode + AC status in Web; Quiet/Balance direct like OEM; Turbo requires AC and confirmation; opt-in writes remain gated at kernel level.
+- One-minute in-memory fan RPM sparklines using the existing 2-second GET; no fan PWM commands or extra WMI calls.
+- Fix installer predecessor detection for 2.2.0 and uninstall target version; add source-based OEM profile audit.
+- Hardware acceptance pending. DKMS 2.3.0 build required for updated Turbo gate.
+
 # Changelog
 
 ## 2.2.0 - OEM speed & two-fan monitor alignment

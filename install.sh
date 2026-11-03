@@ -3,7 +3,7 @@
 set -Eeuo pipefail
 
 PKG='metacube-ambient'
-VER='2.2.0'
+VER='2.3.0'
 OLD='1.0.0'  # detected below: v1, v2.0 or v2.1 predecessor
 MODULE='metacube_ambient'
 GUID='B60BFB48-3E5B-49E4-A0E9-8CFFE1B3434B'
@@ -43,7 +43,7 @@ Usage: bash install.sh [--enable-writes | --disable-writes]
   --enable-writes          Allow RGB writes. Omitted => preserve current policy.
   --disable-writes         Force all firmware writes off.
   --enable-platform-writes ALSO enable OEM performance/keyboard button writes.
-                           Experimental, not previously tested on this PVE.
+                           AC online required for Turbo; not tested on this PVE.
   --enable-restore         Enable boot light restoration, saving initial preset
                            only when not already present.
   --web-only               Update Web/CLI files only; no DKMS or kernel changes.
@@ -105,7 +105,7 @@ rollback_on_exit(){
       rm -rf -- "$SNAPSHOT"
       exit "$rc"
     fi
-    printf 'Upgrade failed. Attempting to restore the pre-upgrade v1 configuration...\n' >&2
+    printf 'Upgrade failed. Attempting to restore the pre-upgrade configuration...\n' >&2
     systemctl stop metacube-rgb-web.service 2>/dev/null || true
     if [[ -d "/sys/module/$MODULE" ]]; then
       running="$(cat "/sys/module/$MODULE/version" 2>/dev/null || true)"
@@ -208,7 +208,7 @@ if [[ "$WRITES" -eq 0 && "$PLATFORM" -eq 1 ]]; then fail 'Platform writes also r
 
 # Select the previously installed module, if any. Do not remove a wrong version
 # when the host has both v1 and v2 source registrations.
-for candidate in 2.1.0 2.0.0 1.0.0; do
+for candidate in 2.2.0 2.1.0 2.0.0 1.0.0; do
   if [[ "$(dkms status -m "$PKG" -v "$candidate" -k "$KERNEL" 2>/dev/null || true)" == *': installed'* ]]; then
     OLD="$candidate"
     break

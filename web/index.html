@@ -20,7 +20,7 @@
 </aside>
 <main class="content">
   <header class="topbar"><div class="crumb"><span>METACUBE</span><span class="crumb-slash">/</span><span id="pageBreadcrumb">设备总览</span></div>
-  <div class="top-actions"><span class="version-chip" id="versionChip">v2.2.0</span><button class="outline-button small" id="refreshButton">↻ 刷新设备</button></div></header>
+  <div class="top-actions"><span class="version-chip" id="versionChip">v2.3.0</span><button class="outline-button small" id="refreshButton">↻ 刷新设备</button></div></header>
   <div class="page-container">
   <section id="view-dashboard" class="view active">
     <div class="heading-block"><div class="eyebrow">HARDWARE CONTROL CENTER <span class="line"></span> <span id="todayText"></span></div><h1>掌控你的 <em>MetaCube.</em></h1><p>灯效、性能与硬件状态，一切尽在掌握。</p></div>
@@ -50,7 +50,7 @@
       <article class="card color-card"><div class="card-heading"><div><span class="tiny-label">02 / PALETTE</span><h3>自定义配色 <span class="light-detail">最多 6 色</span></h3></div><button id="addColorButton" class="outline-button small">＋ 添加颜色</button></div><div id="colorEditor" class="color-editor"></div>
         <div class="color-presets"><span>设置第一种颜色</span><button data-quick-color="FF5656" aria-label="红色"></button><button data-quick-color="FFA940" aria-label="橙色"></button><button data-quick-color="FFE274" aria-label="黄色"></button><button data-quick-color="6CE8BA" aria-label="绿色"></button><button data-quick-color="50DCFA" aria-label="青蓝色"></button><button data-quick-color="8057FF" aria-label="紫色"></button><button data-quick-color="FF78C2" aria-label="粉色"></button></div></article>
       <article class="card parameters-card"><div class="card-heading"><div><span class="tiny-label">03 / PARAMETERS</span><h3>动态参数</h3></div><span class="hint">按原厂数据位定义</span></div>
-        <div class="control-group"><div class="control-line"><label for="brightnessInput">光效亮度 <small>原厂 0–10 档 / Linux 0–255 精度</small></label><output id="brightnessValue">160</output></div><input id="brightnessInput" type="range" min="0" max="255" step="1" value="160"/></div>
+        <div class="control-group"><div class="control-line"><label for="brightnessInput">光效亮度 <small>原厂 0–10 档 · 写入值 = 档位 × 26（最高 255）</small></label><output id="brightnessValue">7 / 10</output></div><input id="brightnessInput" type="range" min="0" max="10" step="1" value="7"/></div>
         <div class="control-group"><div class="control-line"><label for="speedInput">旋转 / 动效速度 <small>默认锁定在 2 · 需要宿主机管理员解锁</small></label><output id="speedValue">2</output></div><input id="speedInput" type="range" min="0" max="10" step="1" value="2" disabled aria-describedby="rgbSafetyNotice"/></div>
         <div class="control-options"><div><strong>旋转方向</strong><small>旋转模式有效</small></div><div class="segmented"><button data-direction="0">↻ 顺时针</button><button data-direction="1">↺ 逆时针</button></div></div>
         <div class="control-group"><div class="control-line"><label for="cycleInput">色彩循环级别</label><div class="cycle-action"><output id="cycleValue">0 / 11</output><button class="outline-button small" id="nextCycleButton">下一级 ↻</button></div></div><input id="cycleInput" type="range" min="0" max="11" step="1" value="0"/></div>
@@ -89,13 +89,16 @@
           <span class="hint">2s refresh &#183; Windows ControlCenter parity</span></div>
         <p class="section-copy">&#23545;&#24212;&#21407;&#29256;&#24615;&#33021;&#39029;&#30340;&#20027;&#39118;&#25159;&#21644;&#23567;&#39118;&#25159;&#36716;&#36895;&#65292;&#21482;&#35835;&#19981;&#25913;&#21464; EC &#28201;&#25511;&#31574;&#30053;&#12290;</p>
         <div class="fan-rpm-grid">
-          <div class="fan-rpm-item"><small>&#20027;&#39118;&#25159; / MAIN FAN</small><div class="fan-rpm-number"><strong id="mainFanRpm">--</strong><span>RPM</span></div></div>
-          <div class="fan-rpm-item"><small>&#23567;&#39118;&#25159; / SMALL FAN</small><div class="fan-rpm-number"><strong id="smallFanRpm">--</strong><span>RPM</span></div></div>
+          <div class="fan-rpm-item"><small>主风扇 / MAIN FAN</small><div class="fan-rpm-number"><strong id="mainFanRpm">--</strong><span>RPM</span></div><svg class="fan-spark" viewBox="0 0 240 54" preserveAspectRatio="none" role="img" aria-label="主风扇最近一分钟转速趋势"><polyline id="mainFanSpark" points=""/></svg></div>
+          <div class="fan-rpm-item"><small>小风扇 / SMALL FAN</small><div class="fan-rpm-number"><strong id="smallFanRpm">--</strong><span>RPM</span></div><svg class="fan-spark" viewBox="0 0 240 54" preserveAspectRatio="none" role="img" aria-label="小风扇最近一分钟转速趋势"><polyline id="smallFanSpark" points=""/></svg></div>
         </div>
+        <p class="fan-autocontrol-note">原厂性能页只提供风扇 RPM 监控。风扇转速由主板 EC 自动温控；切换静音／均衡／狂暴会使用原厂性能模式，而不是手动覆盖风扇 PWM。</p>
         <p id="fanSourceNote" class="secondary-note" role="status">&#31561;&#24453;&#21407;&#21378; WMI &#21482;&#35835;&#26597;&#35810;&#8230;</p>
       </article>
       <article class="card"><div class="card-heading"><div><span class="tiny-label">PERFORMANCE PROFILE</span><h3>主机性能模式</h3></div><span id="platformBadge" class="locked-badge">默认锁定</span></div><p class="section-copy">原厂提供 Turbo / Balance / Quiet。切换可能改变风扇及功耗策略，请在确认机型支持后操作。</p>
         <div class="profile-row"><button data-profile="2"><span>☾</span><b>静音</b><small>Quiet · 2</small></button><button data-profile="1"><span>◉</span><b>均衡</b><small>Balance · 1</small></button><button data-profile="0"><span>✦</span><b>狂暴</b><small>Turbo · 0</small></button></div>
+        <div class="profile-info"><span id="profileCurrent">当前档位：等待原厂 WMI 读取</span><span id="acPowerStatus">供电状态：检测中</span></div>
+        <p class="profile-oem-note">与原厂相同：静音/均衡直接切换；狂暴模式先验证系统 AC 在线，再进行二次确认。未授权时保持只读。</p>
         <div class="warning-panel">⚠ 此类操作涉及 EC/BIOS 性能策略。首次安装默认禁用，必须使用 <code>--enable-platform-writes</code> 另行授权。请勿将网页视为已验证的超频工具。</div>
       </article>
       <article class="card"><div class="card-heading"><div><span class="tiny-label">BUTTON BACKLIGHT</span><h3>按键灯亮度</h3></div><span id="buttonValue" class="tiny-label">—</span></div><p class="section-copy">原厂提供 0–3 级按键灯亮度调节。该接口与机身 RGB 独立。</p>

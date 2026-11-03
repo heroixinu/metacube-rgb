@@ -12,6 +12,7 @@
 #include <linux/hex.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
+#include <linux/power_supply.h>
 #include <linux/slab.h>
 #include <linux/sysfs.h>
 #include <linux/wmi.h>
@@ -537,17 +538,15 @@ static ssize_t oem_system_mode_store(struct device *dev,
     if (!allow_platform_writes || !allow_writes)
         return -EPERM;
     mutex_lock(&ctx->lock);
-    /* The Windows OEM UI restricts Turbo based on AC adapter type.
-     * For safety, only allow Turbo when the firmware positively reports
-     * circular-jack power (2). Unrecognized/USB-C power fails closed.
+    /* The M11 Windows OEM TurboMode_Click uses GetSystemPowerStatus()
+     * and requires LineStatus == 1 (AC online); it does not require a
+     * particular circular/USB-C connector WMI value. Match that behavior
+     * using Linux's power-supply state, failing closed when unknown.
+     * This only runs after the separate allow_platform_writes opt-in.
      */
-    if (val == 0) {
-        u8 ac[PACKET_SIZE];
-        ret = mc_read_oem(ctx, FUNC_AC_TYPE, ac);
-        if (ret || ac[4] != 2) {
-            mutex_unlock(&ctx->lock);
-            return -EOPNOTSUPP;
-        }
+    if (val == 0 && power_supply_is_system_supplied() != 1) {
+        mutex_unlock(&ctx->lock);
+        return -EOPNOTSUPP;
     }
     ret = mc_set_oem_scalar(ctx, FUNC_SYSTEM_MODE, val);
     mutex_unlock(&ctx->lock);
@@ -645,5 +644,5 @@ module_wmi_driver(metacube_ambient_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("MetaCube OEM WMI controller: ambient RGB and gated OEM settings");
-MODULE_VERSION("2.2.0");
+MODULE_VERSION("2.3.0");
 MODULE_AUTHOR("OpenAI ChatGPT (reverse engineering aid)");

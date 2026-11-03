@@ -64,6 +64,15 @@ class DemoDevice(Device):
         self._current = normalize_lighting(changes, self._current)
         return self.state()
 
+    def ac_status(self):
+        return {'ac_online':True,'source':'demo','adapters':[{'name':'DEMO-AC','type':'Mains','online':True}],
+                'note':'Simulated AC, no hardware access'}
+
+    def profile_status(self):
+        return {'profile':{'value':1,'label':'balanced'},'power':self.ac_status(),
+                'write_enabled':False, 'available_modes':{'turbo':0,'balanced':1,'quiet':2},
+                'turbo_available':True,'manual_fan_speed_supported':False}
+
     def fans(self):
         return {'available':True, 'main_rpm':2380, 'small_rpm':1740,
                 'source':'demo', 'poll_seconds':2, 'manual_control':False,
@@ -95,6 +104,8 @@ class Api:
             return {'version': __version__, 'service':'ready'}
         if path == '/api/status':
             return {'lighting':self.device.state(), 'version':__version__, 'demo':self.demo, 'undo_available':self._undo_before is not None}
+        if path == '/api/profile':
+            return self.device.profile_status()
         if path == '/api/fans':
             # At most one physical ACPI probe every two seconds per Web server,
             # even when multiple browsers are watching the performance page.

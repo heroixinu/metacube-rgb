@@ -2,7 +2,7 @@
 # Managed by metacube-rgb-dkms installer
 set -Eeuo pipefail
 PKG=metacube-ambient
-VER=2.1.0
+VER=2.3.0
 MODULE=metacube_ambient
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MARKER='Managed by metacube-rgb-dkms installer'

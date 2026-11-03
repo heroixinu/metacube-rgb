@@ -1,3 +1,11 @@
+# MetaCube RGB v2.3.0 — OEM RGB brightness, profiles & fan telemetry
+
+This build fixes two OEM parity gaps found in the user's Windows 2024 `玄机中枢.dll` IL: brightness uses a WPF 0..10 slider and encodes `min(level*26,255)`, while Turbo checks OS AC-online state via `GetSystemPowerStatus(LineStatus==1)`, not adapter connector type (`WMI 0x13 == 2`). Quiet/Balance/Turbo mode IDs remain 2/1/0. The Linux module now checks AC-online using `power_supply_is_system_supplied()` and only when explicit platform-write opt-in is enabled. The Web offers native brightness steps, active performance state, AC diagnostics, and non-invasive one-minute fan RPM trends. **No fan SET or PWM override exists in this release**: the original performance page provides only main/small RPM readouts, every 2s. See [OEM evidence and limits](docs/OEM_PERFORMANCE_FAN_PARITY.md).
+
+Existing PVE DKMS 2.2.0 hosts must update the kernel module to 2.3.0 at a maintenance window (`git pull --ff-only && bash install.sh --enable-writes`). Do not enable platform writes by default. Verify with `metacube-rgb fans`, `metacube-rgb profile` and `modinfo -F version metacube_ambient`. Nonbaseline RGB animation speed remains locked by default following a physical LED outage.
+
+---
+
 # MetaCube RGB Web v2.2.0 - OEM speed and fan readout parity
 
 - **RGB speed:** original WPF slider is **0..10** (initial UI value 3, integer step 1), not 0..255. Linux preserves `speed=2` as the default firmware-write safety limit because of the earlier LED freeze.

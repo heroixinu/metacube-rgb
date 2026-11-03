@@ -75,3 +75,21 @@
 - Windows OEM performance-page `SetUI_FanSpeed` reads **GET 0x14**, interprets bytes 4/5 and 6/7 as **big-endian** main/small RPM, and refreshes every **2000 ms** only while the performance page is active.
 - Generic upstream Bitland documentation instead describes **GET 0x0d** little-endian CPU/GPU/SYS RPM and `0x14/0x15` fan overrides on some models. Linux now exposes both variants read-only, marks which one actually supplied data, and does not assume generic write commands are safe for MetaCube M11.
 - No manual fan PWM controls were identified in the supplied OEM performance UI. Fan control remains intentionally read-only; see [detailed investigation](OEM_SPEED_FAN_AUDIT.md).
+
+## v2.3 OEM original source audit — RGB, fans and profiles
+
+The following values come from the user-supplied `玄机中枢.dll` IL. They must not be extrapolated from other Bitland hardware.
+
+| Original UI/control method | Windows original | Linux v2.3.0 | Remaining gap / risk |
+|---|---|---|---|
+| `SpinSpeedSlider` | 0–10 integer, initial *UI* default 3, writes OEM byte 25 only after commit | 0–10 preview, speed 2 default write lock | Other speed values previously followed by physical LED outage; not revalidated |
+| `OverLightSlider` | 0–10 levels; `SetData_OverLight` multiplies by 26 and caps at 255 | Web now same 0–10 levels; CLI still 0–255 | Non-slider CLI values remain intentionally editable; preserved when editing other properties |
+| Ambient modes | Breath 2, Steady 3, Spin 4, Off 5 | Matching WMI 0x0f flags | Multi-color rotational fidelity needs hardware acceptance |
+| `SetUI_FanSpeed` | GET 0x14, main/small big-endian RPM, ~2s active-performance-page refresh | OEM GET preferred; generic fallback labeled; Web RPM trend based on same reads | M11 0x14 output not yet independently confirmed on PVE |
+| Manual fan RPM/PWM | Not a visible user control in provided original WPF performance page | **Not exposed** | Generic Bitland 0x14/0x15 write semantics not hardware-proven for M11; do not send arbitrary SET |
+| `QuietMode_Click` | mode 2, directly writes WMI 0x08 | mode 2, direct click after explicit authorization | Physical cooling response pending verification |
+| `BalanceMode_Click` | mode 1, directly writes WMI 0x08 | mode 1, direct click after explicit authorization | Physical cooling response pending verification |
+| `TurboMode_Click` | mode 0, AC online check + original confirmation | mode 0, Linux power_supply AC online + confirmation + explicit opt-in | More conservative than original by design |
+| Button LED | WMI 0x19, levels 0–3 | Gated read/write and readback | Whether M11 has an independently controlled LED still unverified |
+
+Full evidence and safe handling: [OEM performance and fan investigation](OEM_PERFORMANCE_FAN_PARITY.md).

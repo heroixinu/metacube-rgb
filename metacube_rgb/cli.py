@@ -33,6 +33,7 @@ def main(argv=None):
     colors.add_argument('values',nargs='+',help='RRGGBB colors')
     sub.add_parser('system',help='Display Linux host telemetry')
     sub.add_parser('fans',help='Read-only OEM main/small fan RPM with source fallback')
+    sub.add_parser('profile',help='OEM performance state + AC online eligibility (read-only)')
     sub.add_parser('oem',help='Read optional OEM WMI status (explicit query)')
     platform=sub.add_parser('platform',help='Optional OEM platform control')
     platform.add_argument('kind',choices=('system_mode','button_brightness'))
@@ -102,6 +103,8 @@ def main(argv=None):
             print(json.dumps(dev.lighting({'colors':args.values}),indent=2))
         elif args.command=='fans':
             print(json.dumps(dev.fans(),indent=2,ensure_ascii=False))
+        elif args.command=='profile':
+            print(json.dumps(dev.profile_status(),indent=2,ensure_ascii=False))
         elif args.command=='system':
             from .metrics import Sampler
             print(json.dumps(Sampler().snapshot(),indent=2,ensure_ascii=False))

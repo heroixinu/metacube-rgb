@@ -166,9 +166,11 @@ def _atomic_write(path: Path, content: str, mode=0o600):
 
 
 class Device:
-    def __init__(self, wmi_dir: Path = WMI_DIR, module_dir: Path = MODULE_DIR):
+    def __init__(self, wmi_dir: Path = WMI_DIR, module_dir: Path = MODULE_DIR,
+                 power_root: Path = Path('/sys/class/power_supply')):
         self.wmi_dir = Path(wmi_dir)
         self.module_dir = Path(module_dir)
+        self.power_root = Path(power_root)
         self._fan_oem_probe_failed = False  # avoid repeated unsupported ACPI calls
         self._fan_generic_probe_failed = False
 
@@ -335,6 +337,45 @@ class Device:
                     result[name] = {'unsupported': True, 'reason': str(exc)}
         return result
 
+    def ac_status(self) -> dict:
+        """OEM Windows GetSystemPowerStatus(LineStatus == 1) equivalent.
+
+        Only adapter 'Mains' and 'USB' power supplies exposing online=0/1
+        are counted; missing/ambiguous sysfs status stays UNKNOWN. No WMI.
+        """
+        found = []
+        try:
+            supplies = sorted(self.power_root.iterdir())
+        except OSError:
+            supplies = []
+        for supply in supplies:
+            try:
+                kind = (supply / 'type').read_text(encoding='ascii').strip()
+                if kind not in ('Mains', 'USB', 'USB_C', 'USB_PD', 'USB_PD_DRP'):
+                    continue
+                status = (supply / 'online').read_text(encoding='ascii').strip()
+                if status not in ('0','1'):
+                    continue
+                found.append({'name':supply.name,'type':kind,'online':status=='1'})
+            except OSError:
+                continue
+        if not found:
+            return {'ac_online':None, 'source':'linux_power_supply',
+                    'adapters':[], 'note':'AC online state unavailable; Turbo blocked'}
+        return {'ac_online':any(x['online'] for x in found),
+                'source':'linux_power_supply', 'adapters':found,
+                'note':'Matches OEM LineStatus == 1 check; current firmware mode remains authoritative'}
+
+    def profile_status(self) -> dict:
+        """OEM performance selection and AC precondition; no WMI writes."""
+        profile = self.read_oem(['system_mode'])['system_mode']
+        ac = self.ac_status()
+        return {'profile':profile, 'power':ac,
+                'write_enabled':self.flag('allow_platform_writes') and self.flag('allow_writes'),
+                'available_modes':PERFORMANCE_MODES,
+                'turbo_available': ac['ac_online'] is True,
+                'manual_fan_speed_supported':False}
+
     def platform(self, control: str, value: Any) -> dict:
         mapping = {'system_mode': ('oem_system_mode', 2),
                    'button_brightness': ('oem_button_brightness', 3)}
@@ -345,6 +386,9 @@ class Device:
         if not (self.flag('allow_platform_writes') and self.flag('allow_writes')):
             raise MetaCubeError('OEM platform writes are locked; explicit driver opt-in required')
         with LOCK:
+            if control == 'system_mode' and val == PERFORMANCE_MODES['turbo']:
+                if self.ac_status()['ac_online'] is not True:
+                    raise MetaCubeError('Turbo requires AC online (OEM GetSystemPowerStatus LineStatus == 1)')
             self._write(attr, str(val))
             data = self.read_oem([control])[control]
             if data.get('value') != val:
