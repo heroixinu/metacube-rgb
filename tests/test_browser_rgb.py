@@ -100,6 +100,10 @@ def main():
             page.locator('#undoLightingButton').click()
             # need click after dialog handler registration, otherwise confirm may remain
             page.wait_for_timeout(100)
+            # Regression: missing optional metric gauges must not break system info.
+            page.locator('[data-view="system"]').click()
+            page.locator('#systemInfo .info-item').first.wait_for(timeout=4000)
+            assert page.locator('#systemInfo .info-item').count() >= 6
             assert not errors,errors
             print('Chrome RGB mock-browser smoke tests passed; screenshot created')
             browser.close()

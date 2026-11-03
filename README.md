@@ -8,9 +8,29 @@ Web-only update; DKMS kernel module remains 2.1.0.
 - `GET /api/templates`, `POST /api/templates/apply`, `metacube-rgb template list`, `metacube-rgb template apply ID`.
 - No hardware WMI changes. Host-only files can be installed with `bash install.sh --web-only`.
 
-# MetaCube RGB Web v2.1.3 (top-cover LED ring preview; DKMS remains 2.1.0)
+# MetaCube RGB Web v2.1.2 (incident safeguard; DKMS driver remains 2.1.0)
 
 Independent Linux/PVE WMI RGB control center for **METAPHYUNI MetaCube M11 Series-HPT**, based on static analysis of the user-supplied Windows `ControlCenter` (.NET `玄机中枢`) application. **Not the OEM Windows driver.**
+
+## Screenshots / 界面截图
+
+> Screenshots rendered from the v2.1.3 Web UI using **simulated device status and demo host metrics**. No physical RGB hardware was controlled to create these images.
+
+### Dashboard · Device overview
+
+![MetaCube RGB Web dashboard with live metric cards and lighting summary](docs/screenshots/overview.webp)
+
+### Lighting studio · Top-cover RGB ring preview
+
+![Lighting studio showing multi-color rotating RGB ring, effect modes and color editor](docs/screenshots/lighting.webp)
+
+### Built-in themes, user presets and system information
+
+| System templates & user presets | System settings & host details |
+| :---: | :---: |
+| ![System lighting templates and personal RGB preset slots](docs/screenshots/presets.webp) | ![System settings and host information panel](docs/screenshots/system.webp) |
+
+> The circular LED animation is a **browser simulation**, not a validated recording of the physical light controller. Custom effect speed remains locked to `2` by default.
 
 - **RGB first:** 4 ambient modes, 1–6 editable colors, exact RGB/HSV numeric controls, 0–255 brightness, speed, spin direction, cycle value 0–11, gradient transition, color ordering and mode-specific simulated previews.
 - **Web:** `metacube-rgb web`, Bearer-token authentication, LAN access enabled by default (limit firewall exposure); WMI request preview, one-step undo and stale-state write protection.
@@ -18,7 +38,7 @@ Independent Linux/PVE WMI RGB control center for **METAPHYUNI MetaCube M11 Serie
 - **Driver:** one WMI `0x0F` SET per complete RGB profile, GET readback validation, DKMS, existing MOK signing; no PVE kernel image/boot modifications.
 - **Other OEM features:** Linux host metrics and explicit diagnostics; unsafe thermal/fan/GPU controls intentionally not writable by default.
 
-**LED output incident (2026-11-04):** The owner observed RGB LEDs stop emitting light after changing rotation-effect speed, even though firmware GET returned valid updated settings. A complete power-down, unplugging AC, and restarting restored the previously saved blue breathing effect. The direct cause is unconfirmed. **v2.1.3 defaults to locking only speed customization.** Spin, multiple colors, direction, cycle, transition, mode, and brightness may be written with `speed=2`. The Web slider is disabled by default; non-2 speed values are refused by the backend. Local administrators can deliberately opt in with `METACUBE_ALLOW_SPEED_CUSTOMIZATION=1`, but doing so may require another full power-cycle if the LEDs freeze. OEM keyboard RGB WMI probes that produced `AE_NOT_FOUND` are also skipped by default. This protection is in Python/Web/CLI, not in the kernel driver; direct root sysfs writes remain possible.
+**LED output incident (2026-11-04):** The owner observed RGB LEDs stop emitting light after changing rotation-effect speed, even though firmware GET returned valid updated settings. A complete power-down, unplugging AC, and restarting restored the previously saved blue breathing effect. The direct cause is unconfirmed. **Advanced RGB writes are therefore disabled by default in v2.1.2.** Only one-color `breath`, `steady`, `off`, and brightness/one-color changes with `speed=2 direction=0 cycle=0 transition=0` are allowed. Web shows an explicit warning and disables advanced effect controls. Local operators may intentionally opt in via `METACUBE_EXPERIMENTAL_RGB=1`, but this may require another cold power-cycle. OEM keyboard RGB WMI probes that produced `AE_NOT_FOUND` are also skipped by default. This protection is in Python/Web/CLI, not in the kernel driver; direct root sysfs writes remain possible.
 
 ## Install / Upgrade on PVE
 
@@ -50,8 +70,8 @@ The `--web-only` path does not uninstall, reload, rebuild or re-sign the kernel 
 
 ```bash
 # Creates a 32-byte SET preview but NEVER writes hardware:
-metacube-rgb set --mode spin --colors FF0000 00FF00 --brightness 160 --speed 2 --direction 0 --cycle 6 --transition 1 --dry-run
-# v2.1.3 allows spin and colors at baseline speed 2. Non-2 speed is blocked by default.
+metacube-rgb set --mode spin --colors FF0000 00FF00 --brightness 160 --speed 45 --direction 0 --cycle 6 --transition 1 --dry-run
+# v2.1.2 deliberately BLOCKS the advanced write unless the host operator explicitly opts in.
 # The dry-run preview never writes firmware.
 ```
 

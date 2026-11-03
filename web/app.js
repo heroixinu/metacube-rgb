@@ -384,6 +384,8 @@ async function inspectPacket(){
 
 function setGauge(name, percent, detail){
   const num=$(`#${name}Metric`), bar=$(`#${name}Bar`), desc=$(`#${name}Detail`);
+  // Optional gauges may be absent; do not prevent the host info panel from rendering.
+  if(!num || !bar || !desc)return;
   num.textContent=Number.isFinite(percent)?String(Math.round(percent*10)/10):'—';
   bar.style.width=Number.isFinite(percent)?`${Math.max(0,Math.min(100,percent))}%`:'0%';
   desc.textContent=detail;
