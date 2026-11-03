@@ -11,3 +11,30 @@
 .hsv-channel label{font-size:12px;color:var(--muted)}
 .hsv-channel output{text-align:right;font-variant-numeric:tabular-nums;color:var(--text);font-size:12px}
 .hsv-channel input{width:100%;accent-color:var(--accent)}
+
+/* v2.1 RGB Studio: OEM-style RGB/HSV controls and safe draft workflow. */
+.rgb-actions{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:13px 18px;margin:-10px 0 19px;background:#171b25;border:1px solid #303847;border-radius:13px;flex-wrap:wrap}
+.rgb-actions>div:first-child{display:grid;gap:4px}
+.rgb-actions strong{font-size:12px}
+.rgb-actions span{color:#8792a5;font-size:11px}
+.rgb-actions span.conflict{color:#ffc196}
+.rgb-action-buttons{display:flex;gap:8px;flex-wrap:wrap}
+.rgb-action-buttons button{font-size:11px}
+.color-row{flex-wrap:wrap}
+.color-row .icon-button{flex:0 0 25px;width:25px;min-width:25px;height:29px;display:grid;place-items:center}
+.color-row input[type=text]{min-width:72px;max-width:106px}
+.color-channel-title{font-size:10px;color:var(--accent);font-weight:700;letter-spacing:.08em;margin:12px 0 5px}
+.hsv-channel{grid-template-columns:86px minmax(75px,1fr) 66px}
+.hsv-channel input[type=number]{width:100%;height:28px;padding:3px 6px;background:#1d2331;color:#dce7f3;border:1px solid #384253;border-radius:6px;font-size:11px;text-align:center;font-variant-numeric:tabular-nums}
+.preset-toolbar{display:flex;gap:7px;flex-wrap:wrap;margin:-4px 0 14px}
+.preset-item{grid-template-columns:minmax(110px,1fr);gap:11px}
+.preset-buttons{display:flex;flex-wrap:wrap}
+.preset-buttons button{font-size:10px;flex:1 0 auto;padding:7px 8px}
+.cycle-action{display:flex;align-items:center;gap:9px}
+.simulation-note{color:#7e899b;font-size:10px;line-height:1.7;margin:-12px 0 15px}
+.packet-card pre{white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-all;color:#7fddcf;background:#0c121c;border:1px solid #2d3c4c;border-radius:9px;padding:16px;font:12px/1.9 ui-monospace,SFMono-Regular,Consolas,monospace}
+[hidden]{display:none!important}
+@keyframes mc-breathe{0%,100%{filter:brightness(.45);opacity:.4}50%{filter:brightness(1.18);opacity:1}}
+@keyframes mc-spin{0%{background-position:0% 50%}100%{background-position:100% 50%}}
+@media(prefers-reduced-motion:reduce){.preview-strip{animation:none!important}}
+@media(max-width:540px){.rgb-actions{align-items:stretch}.rgb-action-buttons{width:100%}.rgb-action-buttons button{flex:1 1 auto}.hsv-channel{grid-template-columns:62px minmax(55px,1fr) 64px}.color-row .spacer{display:none}}

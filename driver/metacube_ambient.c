@@ -71,6 +71,7 @@ static int mc_wmi_call_func(struct metacube_ambient *ctx, u8 operation,
     status = wmidev_evaluate_method(ctx->wdev, 0, WMI_METHOD_ID, &in, &out);
     if (ACPI_FAILURE(status)) {
         dev_warn(&ctx->wdev->dev, "WMI method failed: 0x%x\n", (unsigned int)status);
+        kfree(out.pointer);
         return -EIO;
     }
     obj = out.pointer;
@@ -613,5 +614,5 @@ module_wmi_driver(metacube_ambient_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("MetaCube OEM WMI controller: ambient RGB and gated OEM settings");
-MODULE_VERSION("2.0.0");
+MODULE_VERSION("2.1.0");
 MODULE_AUTHOR("OpenAI ChatGPT (reverse engineering aid)");

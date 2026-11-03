@@ -2,7 +2,7 @@
 # Managed by metacube-rgb-dkms installer
 set -Eeuo pipefail
 PKG=metacube-ambient
-VER=2.0.0
+VER=2.1.0
 MODULE=metacube_ambient
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MARKER='Managed by metacube-rgb-dkms installer'
@@ -16,7 +16,7 @@ for arg in "$@"; do
 done
 [[ $EUID -eq 0 ]] || { echo 'Run as root' >&2; exit 1; }
 if [[ ! -d "/var/lib/dkms/$PKG/$VER" && ! -e /usr/local/lib/metacube-rgb/.managed ]]; then
-  echo 'The v2 installation does not appear to exist; refusing to unload an unknown driver.' >&2
+  echo 'The v2.1 installation does not appear to exist; refusing to unload an unknown driver.' >&2
   exit 1
 fi
 systemctl disable --now metacube-rgb-web.service 2>/dev/null || true

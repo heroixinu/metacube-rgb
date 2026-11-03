@@ -42,6 +42,11 @@ class MetaCubeError(Exception):
     pass
 
 
+class MetaCubeConflict(MetaCubeError):
+    """The WMI configuration changed since the editor loaded its baseline."""
+    pass
+
+
 def number(value: Any, minimum: int, maximum: int, title: str) -> int:
     if isinstance(value, bool) or (isinstance(value, str) and not value.isascii()):
         raise MetaCubeError(f'{title} must be an integer {minimum}..{maximum}')
@@ -92,6 +97,26 @@ def normalize_lighting(payload: dict[str, Any], current: dict | None = None) -> 
         if key in payload:
             result[key] = number(payload[key], 0, maximum, key)
     return result
+
+
+def build_ambient_set_packet(raw: str, payload: dict) -> str:
+    """Deterministic 32-byte OEM SET preview; never sent to hardware here.
+
+    Generated from a current GET, preserving OEM-reserved bytes 29..31.
+    The kernel driver independently constructs the actual WMI request.
+    """
+    if not isinstance(raw, str) or not RAW.fullmatch(raw):
+        raise MetaCubeError('Expected a 32-byte WMI GET response')
+    packet = bytearray.fromhex(raw)
+    if packet[:4] != bytes.fromhex('0080000f'):
+        raise MetaCubeError('Unexpected WMI GET header')
+    lighting = normalize_lighting(payload)
+    packet[0:4] = bytes.fromhex('00fb000f')
+    packet[4] = MODES[lighting['mode']]
+    packet[5] = len(lighting['colors'])
+    packet[6:24] = bytes.fromhex(''.join(lighting['colors'])).ljust(18, b'\0')
+    packet[24:29] = bytes(lighting[field] for field in ('brightness','speed','direction','cycle','transition'))
+    return packet.hex()
 
 
 def _atomic_write(path: Path, content: str, mode=0o600):
@@ -159,9 +184,11 @@ class Device:
             'raw': raw.lower(),
         }
 
-    def lighting(self, changes: dict[str, Any]) -> dict:
+    def lighting(self, changes: dict[str, Any], expected_raw: str | None = None) -> dict:
         with LOCK:
             before = self.state()
+            if expected_raw is not None and before['raw'] != expected_raw:
+                raise MetaCubeConflict('Firmware RGB settings changed after editing began. Refresh before applying.')
             if not before['writable']:
                 raise MetaCubeError('The WMI driver is read-only (allow_writes=N)')
             target = normalize_lighting(changes, before)
@@ -181,7 +208,7 @@ class Device:
                     target['cycle'] != before['cycle'] or
                     target['transition'] != before['transition'] or
                     len(target['colors']) != 1):
-                    raise MetaCubeError('Advanced effects require the v2.0 kernel module')
+                    raise MetaCubeError('Advanced effects require the v2+ kernel module')
                 if target['colors'] != before['colors']:
                     self._write('ambient_color', target['colors'][0])
                 if target['brightness'] != before['brightness']:
@@ -233,40 +260,79 @@ class Device:
 
 
 class Presets:
+    """Five OEM-style local preset slots; data only, never executable packets."""
+    KEYS = {'mode', 'colors', 'brightness', 'speed', 'direction', 'cycle', 'transition'}
+
     def __init__(self, path: Path = PRESETS):
         self.path = Path(path)
+
+    @classmethod
+    def validate_slots(cls, slots: Any) -> list:
+        if not isinstance(slots, list) or len(slots) != 5:
+            raise MetaCubeError('Exactly 5 preset slots are required')
+        verified = []
+        for i, slot in enumerate(slots, 1):
+            if slot is None:
+                verified.append(None)
+                continue
+            if not isinstance(slot, dict) or set(slot) != {'name', 'lighting'}:
+                raise MetaCubeError(f'Preset {i} must contain only name and lighting')
+            name = slot['name']
+            if not isinstance(name, str) or not name or len(name) > 36 or any(ord(c) < 32 for c in name):
+                raise MetaCubeError(f'Invalid preset {i} name (1..36 characters)')
+            lighting = slot['lighting']
+            if not isinstance(lighting, dict) or set(lighting) != cls.KEYS:
+                raise MetaCubeError(f'Preset {i} must contain all 7 lighting fields')
+            verified.append({'name': name, 'lighting': normalize_lighting(lighting)})
+        return verified
 
     def read(self) -> list:
         if not self.path.exists():
             return [None] * 5
         try:
+            if self.path.stat().st_size > 65536:
+                raise MetaCubeError('Presets file exceeds safe size limit')
             data = json.loads(self.path.read_text(encoding='utf-8'))
-            if not isinstance(data, dict) or not isinstance(data.get('slots'), list):
-                raise ValueError('bad preset format')
-            values = data['slots']
-            if len(values) != 5:
-                raise ValueError('bad preset count')
-            return values
         except (OSError, ValueError) as exc:
             raise MetaCubeError(f'Invalid presets file: {exc}') from exc
+        if not isinstance(data, dict) or data.get('version') != 1 or set(data) != {'version', 'slots'}:
+            raise MetaCubeError('Unsupported presets file format')
+        return self.validate_slots(data['slots'])
 
-    def update(self, slot: int, state: dict | None, name: str='') -> list:
+    def export(self) -> dict:
+        return {'version': 1, 'slots': self.read()}
+
+    def replace(self, document: dict) -> list:
+        """Import all presets atomically without touching the physical LEDs."""
+        if not isinstance(document, dict) or set(document) != {'version', 'slots'} or document['version'] != 1:
+            raise MetaCubeError('Preset import requires version 1 and slots')
+        slots = self.validate_slots(document['slots'])
+        with LOCK:
+            _atomic_write(self.path, json.dumps({'version': 1, 'slots': slots}, ensure_ascii=False, indent=2) + '\n')
+        return slots
+
+    def update(self, slot: int, state: dict | None, name: str = '') -> list:
         slot = number(slot, 1, 5, 'preset slot')
         if not isinstance(name, str) or len(name) > 36 or any(ord(c) < 32 for c in name):
             raise MetaCubeError('Invalid preset name (max 36 characters)')
+        lighting = None
+        if state is not None:
+            if not isinstance(state, dict) or not self.KEYS.issubset(state):
+                raise MetaCubeError('Cannot save incomplete lighting settings')
+            lighting = normalize_lighting({key: state[key] for key in self.KEYS})
         with LOCK:
             values = self.read()
-            values[slot-1] = None if state is None else {
+            values[slot-1] = None if lighting is None else {
                 'name': name or f'预设 {slot}',
-                'lighting': normalize_lighting({key:state[key] for key in ('mode','colors','brightness','speed','direction','cycle','transition')}),
+                'lighting': lighting,
             }
-            _atomic_write(self.path, json.dumps({'version': 1, 'slots': values}, ensure_ascii=False, indent=2)+'\n')
+            self.replace({'version': 1, 'slots': values})
             return values
 
     def get(self, slot: int) -> dict:
         slot = number(slot, 1, 5, 'preset slot')
         found = self.read()[slot-1]
-        if not found or 'lighting' not in found:
+        if not found:
             raise MetaCubeError(f'Preset {slot} is empty')
         return normalize_lighting(found['lighting'])
 

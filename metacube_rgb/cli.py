@@ -6,7 +6,8 @@ import os
 from pathlib import Path
 import sys
 from .core import (Device, MODES, PERFORMANCE_MODES, MetaCubeError,
-                   Presets, read_boot_config, save_boot_config)
+                   Presets, read_boot_config, save_boot_config,
+                   normalize_lighting, build_ambient_set_packet, _atomic_write)
 from .web import DEFAULT_TOKEN, serve
 
 
@@ -19,6 +20,13 @@ def main(argv=None):
                       ('speed','0..255'),('direction','0/1'),('cycle','0..11'),('transition','0/1')]:
         sp=sub.add_parser(cmd,help=f'Set {label}')
         sp.add_argument('value')
+    atomic=sub.add_parser('set',help='Atomic RGB update; up to 6 colors and all OEM effect fields')
+    atomic.add_argument('--mode',choices=tuple(MODES))
+    atomic.add_argument('--colors',nargs='+',help='1..6 RRGGBB hex values')
+    for field in ('brightness','speed','direction','cycle','transition'):
+        atomic.add_argument('--'+field,type=int)
+    atomic.add_argument('--expected-raw',help='Optional optimistic WMI state check (64 hex characters)')
+    atomic.add_argument('--dry-run',action='store_true',help='Show full 32-byte SET packet without writing the firmware')
     colors=sub.add_parser('colors',help='Set 1..6 RGB colors')
     colors.add_argument('values',nargs='+',help='RRGGBB colors')
     sub.add_parser('system',help='Display Linux host telemetry')
@@ -27,9 +35,10 @@ def main(argv=None):
     platform.add_argument('kind',choices=('system_mode','button_brightness'))
     platform.add_argument('value')
     presets=sub.add_parser('preset',help='Five OEM-style local lighting presets')
-    presets.add_argument('action',choices=('list','save','apply','delete'))
+    presets.add_argument('action',choices=('list','save','apply','delete','export','import'))
     presets.add_argument('slot',nargs='?',type=int)
     presets.add_argument('--name',default='')
+    presets.add_argument('--file',type=Path,help='JSON file for import/export')
     sub.add_parser('save',help='Save boot restore configuration')
     apply_cmd=sub.add_parser('apply',help='Apply saved boot restore configuration')
     apply_cmd.add_argument('--dry-run',action='store_true')
@@ -60,6 +69,23 @@ def main(argv=None):
         elif args.command in ('mode','color','brightness','speed','direction','cycle','transition'):
             payload={'colors':[args.value]} if args.command=='color' else {args.command:args.value}
             print(json.dumps(dev.lighting(payload),indent=2))
+        elif args.command=='set':
+            fields=('mode','brightness','speed','direction','cycle','transition')
+            changes={field:getattr(args,field) for field in fields if getattr(args,field) is not None}
+            if args.colors is not None:changes['colors']=args.colors
+            if not changes:
+                raise MetaCubeError('Specify at least one RGB field for set')
+            if args.dry_run:
+                before=dev.state()
+                if args.expected_raw is not None and args.expected_raw != before['raw']:
+                    raise MetaCubeError('Firmware changed since the expected raw state')
+                target=normalize_lighting(changes,before)
+                print(json.dumps({'current':{k:before[k] for k in target},
+                                  'target':target,
+                                  'set_packet':build_ambient_set_packet(before['raw'],target),
+                                  'dry_run':True},indent=2,ensure_ascii=False))
+            else:
+                print(json.dumps(dev.lighting(changes,expected_raw=args.expected_raw),indent=2))
         elif args.command=='colors':
             print(json.dumps(dev.lighting({'colors':args.values}),indent=2))
         elif args.command=='system':
@@ -74,6 +100,19 @@ def main(argv=None):
             storage=Presets()
             if args.action=='list':
                 print(json.dumps(storage.read(),indent=2,ensure_ascii=False))
+            elif args.action=='export':
+                data=json.dumps(storage.export(),indent=2,ensure_ascii=False)+'\n'
+                if args.file:
+                    _atomic_write(args.file,data)
+                    print('Exported:',args.file)
+                else:
+                    print(data,end='')
+            elif args.action=='import':
+                if not args.file:
+                    raise MetaCubeError('preset import requires --file PATH')
+                if args.file.stat().st_size>65536:
+                    raise MetaCubeError('Preset import file exceeds 64 KB')
+                print(json.dumps(storage.replace(json.loads(args.file.read_text(encoding='utf-8'))),ensure_ascii=False))
             else:
                 if args.slot is None:
                     raise MetaCubeError('Specify preset slot 1..5')

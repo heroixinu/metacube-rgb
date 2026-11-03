@@ -63,4 +63,21 @@ class WebTests(unittest.TestCase):
         self.assertEqual(self.req('/api/presets')[0],200)
         self.assertEqual(self.req('/api/platform','POST',body={'control':'system_mode','value':0})[0],400)
 
+    def test_new_rgb_routes(self):
+        resp,txt=self.req('/api/status')
+        raw=json.loads(txt)['lighting']['raw']
+        status,plan=self.req('/api/lighting/plan','POST',body={'mode':'spin','colors':['123456','654321'],'expected_raw':raw})
+        self.assertEqual(status,200)
+        self.assertEqual(json.loads(plan)['set_packet'][:8],'00fb000f')
+        status,_=self.req('/api/presets/import','POST',body={'version':1,'slots':[None]*5})
+        self.assertEqual(status,200)
+        status,txt=self.req('/api/presets/export')
+        self.assertEqual(status,200)
+        self.assertEqual(json.loads(txt)['slots'],[None]*5)
+        # Change state, then submit the stale raw; endpoint must answer conflict.
+        status,_=self.req('/api/lighting','POST',body={'brightness':201})
+        self.assertEqual(status,200)
+        status,_=self.req('/api/lighting','POST',body={'brightness':200,'expected_raw':raw})
+        self.assertEqual(status,409)
+
 if __name__=='__main__':unittest.main()

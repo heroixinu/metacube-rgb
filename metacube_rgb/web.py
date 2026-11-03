@@ -11,7 +11,7 @@ import sys
 import threading
 from urllib.parse import urlsplit
 from . import __version__
-from .core import Device, MetaCubeError, Presets, normalize_lighting
+from .core import Device, MetaCubeError, MetaCubeConflict, Presets, normalize_lighting, build_ambient_set_packet
 from .metrics import Sampler
 
 WEB_FILES = {
@@ -38,9 +38,21 @@ class DemoDevice(Device):
                 'color_count':len(data['colors']),
                 'mode_number': MODES[data['mode']],
                 'writable':True,'platform_writable':False,
-                'extended':True,'raw':'(demo - no WMI operations)'}
+                 'extended':True,'raw':self._raw()}
 
-    def lighting(self, changes):
+    def _raw(self):
+        from .core import MODES
+        data = bytearray(32)
+        data[:4] = bytes.fromhex('0080000f')
+        data[4] = MODES[self._current['mode']]
+        data[5] = len(self._current['colors'])
+        data[6:24] = bytes.fromhex(''.join(self._current['colors'])).ljust(18,b'\0')
+        data[24:29] = bytes(self._current[k] for k in ('brightness','speed','direction','cycle','transition'))
+        return data.hex()
+
+    def lighting(self, changes, expected_raw=None):
+        if expected_raw is not None and self.state()['raw'] != expected_raw:
+            raise MetaCubeConflict('Firmware RGB settings changed after editing began. Refresh before applying.')
         self._current = normalize_lighting(changes, self._current)
         return self.state()
 
@@ -60,17 +72,21 @@ class Api:
         self.sampler = sampler or Sampler()
         self.demo = demo
         self._lock = threading.RLock()
+        self._undo_before = None
+        self._undo_after = None
 
     def read(self, path):
         if path == '/api/health':
             return {'version': __version__, 'service':'ready'}
         if path == '/api/status':
-            return {'lighting':self.device.state(), 'version':__version__, 'demo':self.demo}
+            return {'lighting':self.device.state(), 'version':__version__, 'demo':self.demo, 'undo_available':self._undo_before is not None}
         if path == '/api/system':
             with self._lock:
                 return self.sampler.snapshot()
         if path == '/api/presets':
             return {'slots':self.presets.read()}
+        if path == '/api/presets/export':
+            return self.presets.export()
         if path == '/api/oem-basic':
             return {'functions':self.device.read_oem(['system_mode','button_brightness'])}
         if path == '/api/oem':
@@ -80,26 +96,71 @@ class Api:
     def write(self, path, obj):
         if not isinstance(obj, dict):
             raise MetaCubeError('Expected a JSON object')
+        if path == '/api/lighting/plan':
+            changes=dict(obj)
+            expected=changes.pop('expected_raw',None)
+            with self._lock:
+                before=self.device.state()
+                if expected is not None and before['raw'] != expected:
+                    raise MetaCubeConflict('RGB configuration changed; reload before generating a new plan')
+                target=normalize_lighting(changes,before)
+                fields=['mode','colors','brightness','speed','direction','cycle','transition']
+                return {'current':{k:before[k] for k in fields},
+                        'target':target,
+                        'changes':{k:{'from':before[k], 'to':target[k]} for k in fields if before[k] != target[k]},
+                        'set_packet':build_ambient_set_packet(before['raw'],target),
+                        'note':'Dry run only; no WMI SET is issued. Hardware effect remains unverified.'}
         if path == '/api/lighting':
-            return {'lighting':self.device.lighting(obj)}
+            changes=dict(obj)
+            expected=changes.pop('expected_raw',None)
+            with self._lock:
+                before=self.device.state()
+                after=self.device.lighting(changes,expected_raw=expected)
+                if before['raw'] != after['raw']:
+                    self._undo_before=before
+                    self._undo_after=after
+                return {'lighting':after,'undo_available':self._undo_before is not None}
+        if path == '/api/lighting/undo':
+            if obj:
+                raise MetaCubeError('Undo accepts an empty object only')
+            with self._lock:
+                if self._undo_before is None:
+                    raise MetaCubeError('No previous RGB setting is available for undo')
+                now=self.device.state()
+                if now['raw'] != self._undo_after['raw']:
+                    raise MetaCubeConflict('Cannot undo: hardware RGB state changed after last apply')
+                fields=('mode','colors','brightness','speed','direction','cycle','transition')
+                desired={k:self._undo_before[k] for k in fields}
+                updated=self.device.lighting(desired,expected_raw=now['raw'])
+                self._undo_before = self._undo_after = None
+                return {'lighting':updated,'undo_available':False}
         if path == '/api/platform':
             if set(obj) != {'control','value'}:
                 raise MetaCubeError('Expected control and value')
             return {'result':self.device.platform(obj['control'], obj['value'])}
         if path == '/api/presets/save':
-            if set(obj) - {'slot','name'}:
+            if set(obj) - {'slot','name','lighting'}:
                 raise MetaCubeError('Unknown preset fields')
             slot=obj.get('slot')
-            state=self.device.state()
+            # Saving a draft does NOT write the firmware; only an explicit apply does.
+            state=obj['lighting'] if 'lighting' in obj else self.device.state()
             return {'slots':self.presets.update(slot,state,obj.get('name',''))}
+        if path == '/api/presets/import':
+            return {'slots':self.presets.replace(obj)}
         if path == '/api/presets/delete':
             if set(obj) != {'slot'}:
                 raise MetaCubeError('Expected slot')
             return {'slots':self.presets.update(obj['slot'],None)}
         if path == '/api/presets/apply':
-            if set(obj) != {'slot'}:
-                raise MetaCubeError('Expected slot')
-            return {'lighting':self.device.lighting(self.presets.get(obj['slot']))}
+            if set(obj) - {'slot','expected_raw'} or 'slot' not in obj:
+                raise MetaCubeError('Expected slot and optional expected_raw')
+            with self._lock:
+                before=self.device.state()
+                after=self.device.lighting(self.presets.get(obj['slot']),expected_raw=obj.get('expected_raw'))
+                if after['raw'] != before['raw']:
+                    self._undo_before = before
+                    self._undo_after = after
+                return {'lighting':after,'undo_available':self._undo_before is not None}
         raise KeyError(path)
 
 
@@ -127,7 +188,7 @@ def token_from_file(path: Path, generate=True):
 
 def make_handler(api: Api, token: str):
     class Handler(BaseHTTPRequestHandler):
-        server_version = 'MetaCube-Web/2.0'
+        server_version = 'MetaCube-Web/2.1'
         sys_version = ''
         protocol_version = 'HTTP/1.1'
 
@@ -219,6 +280,8 @@ def make_handler(api: Api, token: str):
                 self._json(200,api.write(path,payload))
             except KeyError:
                 self._json(404,{'error':'API endpoint not found'})
+            except MetaCubeConflict as exc:
+                self._json(409,{'error':str(exc)})
             except (MetaCubeError, OSError, ValueError, UnicodeError, json.JSONDecodeError) as exc:
                 self._json(400,{'error':str(exc)})
 

@@ -3,8 +3,8 @@
 set -Eeuo pipefail
 
 PKG='metacube-ambient'
-VER='2.0.0'
-OLD='1.0.0'
+VER='2.1.0'
+OLD='1.0.0'  # detected below: v1.0 or v2.0 predecessor
 MODULE='metacube_ambient'
 GUID='B60BFB48-3E5B-49E4-A0E9-8CFFE1B3434B'
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -27,12 +27,12 @@ WEB_RUNNING=0
 MODULE_SWITCHED=0
 ORIGINAL_LOADED=0
 UPGRADE_COMMITTED=0
-V2_NEW=0
+TARGET_NEW=0
 SRC_NEW=0
 SNAPSHOT=''
 
 fail(){ printf 'ERROR: %s\n' "$*" >&2; exit 1; }
-info(){ printf '[metacube-v2] %s\n' "$*"; }
+info(){ printf '[metacube-rgb] %s\n' "$*"; }
 need(){ command -v "$1" >/dev/null 2>&1 || fail "Missing tool: $1"; }
 usage(){
   cat <<'TXT'
@@ -64,7 +64,7 @@ check_managed(){
 managed_paths=("$CLI" "$UNIT" "$WEBUNIT" "$MODULES_CONF" "$MODPROBE_CONF" "$LIBROOT")
 snapshot_managed_paths(){
   local idx item
-  SNAPSHOT="$(mktemp -d /tmp/metacube-v2-rollback.XXXXXX)"
+  SNAPSHOT="$(mktemp -d /tmp/metacube-rgb-rollback.XXXXXX)"
   chmod 0700 "$SNAPSHOT"
   for idx in "${!managed_paths[@]}"; do
     item="${managed_paths[$idx]}"
@@ -100,7 +100,7 @@ rollback_on_exit(){
       if [[ "$running" == "$VER" ]]; then rmmod "$MODULE" 2>&1 || true; fi
     fi
     if [[ -d "/var/lib/dkms/$PKG/$VER" ]]; then
-      if [[ "$V2_NEW" -eq 1 ]]; then
+      if [[ "$TARGET_NEW" -eq 1 ]]; then
         # Do not leave a failed v2 AUTOINSTALL registration behind.
         dkms remove -m "$PKG" -v "$VER" --all 2>&1 || true
       else
@@ -169,15 +169,20 @@ if [[ -z "$WRITES" ]]; then
 fi
 if [[ "$WRITES" -eq 0 && "$PLATFORM" -eq 1 ]]; then fail 'Platform writes also require --enable-writes'; fi
 
+# Select the previously installed module, if any. Do not remove a wrong version
+# when the host has both v1 and v2 source registrations.
+if [[ "$(dkms status -m "$PKG" -v '2.0.0' -k "$KERNEL" 2>/dev/null || true)" == *': installed'* ]]; then
+  OLD='2.0.0'
+fi
 snapshot_managed_paths
-info 'Preparing DKMS v2.0.0, leaving the running v1 module untouched until build succeeds'
+info "Preparing DKMS v$VER; build occurs before touching the running module"
 if [[ ! -d "$SRC" ]]; then
   SRC_NEW=1
   install -d -m 0755 "$SRC"
   for file in metacube_ambient.c Makefile dkms.conf; do install -m 0644 "$HERE/driver/$file" "$SRC/$file"; done
 fi
 if [[ ! -e "/var/lib/dkms/$PKG/$VER/source" ]]; then
-  V2_NEW=1
+  TARGET_NEW=1
   dkms add -m "$PKG" -v "$VER"
 fi
 new_status="$(dkms status -m "$PKG" -v "$VER" -k "$KERNEL" 2>/dev/null || true)"
@@ -188,7 +193,7 @@ info 'DKMS build passed'
 old_status="$(dkms status -m "$PKG" -v "$OLD" -k "$KERNEL" 2>/dev/null || true)"
 if [[ "$old_status" == *': installed'* ]]; then
   OLD_INSTALLED=1
-  info 'Uninstalling v1 DKMS registration for the current kernel (source retained for rollback)'
+  info "Uninstalling previous DKMS $OLD for the current kernel (source retained for rollback)"
   dkms uninstall -m "$PKG" -v "$OLD" -k "$KERNEL"
   OLD_REMOVED=1
 fi
@@ -228,7 +233,7 @@ if [[ -d "/sys/module/$MODULE" ]]; then
   rmmod "$MODULE" || fail 'Unable to unload old module; aborting activation'
 fi
 modprobe "$MODULE" || fail 'Unable to load signed v2 module'
-[[ -r "$WMI/ambient_raw" && -r "$WMI/ambient_apply" ]] || fail 'The v2 WMI sysfs attributes were not created'
+[[ -r "$WMI/ambient_raw" && -r "$WMI/ambient_apply" ]] || fail 'The expected WMI sysfs attributes were not created'
 [[ "$(cat /sys/module/$MODULE/parameters/allow_writes)" == "$([[ "$WRITES" == '1' ]] && echo Y || echo N)" ]] || fail 'RGB write flag mismatch'
 [[ "$(cat /sys/module/$MODULE/parameters/allow_platform_writes)" == "$([[ "$PLATFORM" == '1' ]] && echo Y || echo N)" ]] || fail 'Platform write flag mismatch'
 MODULE_SWITCHED=1
@@ -238,8 +243,8 @@ UPGRADE_COMMITTED=1
 # Remove v1 DKMS registration to prevent two versions targeting the same
 # module on a future kernel. Retain /usr/src/metacube-ambient-1.0.0 as backup.
 if [[ -d "/var/lib/dkms/$PKG/$OLD" ]]; then
-  info 'Removing old v1 DKMS registration (not its source backup)'
-  dkms remove -m "$PKG" -v "$OLD" --all || info 'Warning: v1 DKMS registry clean-up did not complete'
+  info "Removing previous DKMS registration $OLD (source retained)"
+  dkms remove -m "$PKG" -v "$OLD" --all || info 'Warning: predecessor DKMS registry clean-up did not complete'
 fi
 if [[ "$RESTORE" == 1 ]]; then
   if [[ ! -e /etc/metacube-rgb.conf ]]; then "$CLI" save; fi
