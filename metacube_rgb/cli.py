@@ -43,17 +43,20 @@ def main(argv=None):
     apply_cmd=sub.add_parser('apply',help='Apply saved boot restore configuration')
     apply_cmd.add_argument('--dry-run',action='store_true')
     web=sub.add_parser('web',help='Launch authenticated Web UI')
-    web.add_argument('--host',default=os.environ.get('METACUBE_WEB_HOST','127.0.0.1'))
+    web.add_argument('--host',default=os.environ.get('METACUBE_WEB_HOST','0.0.0.0'),
+                     help='IPv4 bind address (default: 0.0.0.0, accessible via LAN IP)')
     web.add_argument('--port',type=int,default=int(os.environ.get('METACUBE_WEB_PORT','8765')))
     web.add_argument('--token-file',type=Path,default=Path(os.environ.get('METACUBE_WEB_TOKEN_FILE',str(DEFAULT_TOKEN))))
     web.add_argument('--demo',action='store_true',help='UI demonstration; no firmware access')
+    web.add_argument('--show-token',action='store_true',
+                     help='Print Bearer token even when stdout is redirected (may expose credentials in logs)')
     args=p.parse_args(argv)
     dev=Device()
     try:
         if args.command=='web':
             if not 1<=args.port<=65535:
                 raise MetaCubeError('Port must be 1..65535')
-            serve(args.host,args.port,args.token_file,demo=args.demo)
+            serve(args.host,args.port,args.token_file,demo=args.demo,show_token=args.show_token)
         elif args.command=='status':
             state=dev.state()
             if args.json:

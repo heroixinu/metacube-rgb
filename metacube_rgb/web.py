@@ -1,12 +1,15 @@
-"""Authenticated, LAN-safe-by-default MetaCube control panel (stdlib only)."""
+"""Authenticated MetaCube control panel for a trusted LAN (stdlib only)."""
 from __future__ import annotations
 from dataclasses import dataclass
 import hmac
+import ipaddress
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 import os
 from pathlib import Path
 import secrets
+import socket
+import subprocess
 import sys
 import threading
 from urllib.parse import urlsplit
@@ -288,7 +291,83 @@ def make_handler(api: Api, token: str):
     return Handler
 
 
-def serve(host: str, port: int, token_path: Path, demo=False):
+def _lan_ipv4_addresses():
+    """Find useful host IPv4 addresses to print; never sends network traffic.
+
+    Prefer PVE bridges and physical network devices, and skip temporary
+    containers/taps. Detection is display-only: the --host bind still controls
+    the actual listening interface.
+    """
+    entries=[]
+    try:
+        result=subprocess.run(['ip','-j','-4','address','show','up'],capture_output=True,
+                              text=True,timeout=3,check=False)
+        if result.returncode == 0:
+            for iface in json.loads(result.stdout):
+                name=iface.get('ifname','')
+                if name.startswith(('lo','tap','veth','fwbr','fwln','fwpr','docker','virbr','br-')):
+                    continue
+                for item in iface.get('addr_info',[]):
+                    if item.get('family')!='inet' or item.get('scope')!='global':
+                        continue
+                    value=item.get('local','')
+                    try:
+                        ip=ipaddress.IPv4Address(value)
+                    except ipaddress.AddressValueError:
+                        continue
+                    if ip.is_loopback or ip.is_link_local or ip.is_unspecified or ip.is_multicast:
+                        continue
+                    # IPv4 RFC1918 private addresses are preferred in the UI.
+                    private = (ip in ipaddress.ip_network('10.0.0.0/8') or
+                               ip in ipaddress.ip_network('172.16.0.0/12') or
+                               ip in ipaddress.ip_network('192.168.0.0/16'))
+                    priority=(0 if name.startswith('vmbr') else 1,
+                              0 if private else 1,name,value)
+                    entries.append((priority,value))
+    except (OSError,ValueError,TypeError,subprocess.TimeoutExpired):
+        pass
+    if not entries:
+        # A UDP connect only inspects local routing; no packets are sent.
+        try:
+            with socket.socket(socket.AF_INET,socket.SOCK_DGRAM) as sock:
+                sock.connect(('192.0.2.1',9))
+                value=sock.getsockname()[0]
+                if not ipaddress.IPv4Address(value).is_loopback:
+                    entries.append(((0,0,'',value),value))
+        except (OSError,ValueError):
+            pass
+    ordered=[]
+    for _,value in sorted(entries):
+        if value not in ordered:
+            ordered.append(value)
+    return ordered[:8]
+
+
+def startup_lines(host: str, port: int, token: str, *, show_token=False, interactive=False):
+    """Render startup details without logging tokens for systemd by default."""
+    listening=f'{host}:{port}'
+    lines=[f'MetaCube Web v{__version__} listening on {listening}']
+    if host == '0.0.0.0':
+        addresses=_lan_ipv4_addresses()
+        if addresses:
+            lines.extend(f'Web URL: http://{address}:{port}' for address in addresses)
+        else:
+            lines.append(f'Web URL: http://<PVE-LAN-IP>:{port}')
+        lines.append(f'Local URL: http://127.0.0.1:{port}')
+    elif host in ('127.0.0.1','localhost'):
+        lines.append(f'Web URL: http://127.0.0.1:{port}')
+    else:
+        lines.append(f'Web URL: http://{host}:{port}')
+    if interactive or show_token:
+        lines.append(f'Bearer token: {token}')
+    else:
+        lines.append('Bearer token: hidden from service logs (use an interactive terminal)')
+    if host not in ('127.0.0.1','localhost'):
+        lines.append('WARNING: HTTP is unencrypted. Limit TCP 8765 to trusted LAN clients or use HTTPS.')
+    return lines
+
+
+def serve(host: str, port: int, token_path: Path, demo=False, show_token=False):
     if os.geteuid() != 0 and not demo:
         raise MetaCubeError('The host WMI interface is root-owned; run the web server as root')
     token=token_from_file(token_path)
@@ -296,10 +375,9 @@ def serve(host: str, port: int, token_path: Path, demo=False):
     server=ThreadingHTTPServer((host,port),make_handler(api,token))
     server.daemon_threads=True
     try:
-        print(f'MetaCube Web v{__version__}: http://{host}:{server.server_port}',flush=True)
-        print(f'Bearer token: read locally with: sudo cat {token_path}',flush=True)
-        if host not in ('127.0.0.1','::1','localhost'):
-            print('WARNING: Remote HTTP is unencrypted. Restrict with firewall or use HTTPS reverse proxy.',flush=True)
+        for line in startup_lines(host,server.server_port,token,show_token=show_token,
+                                  interactive=sys.stdout.isatty()):
+            print(line,flush=True)
         server.serve_forever(poll_interval=0.5)
     except KeyboardInterrupt:
         pass

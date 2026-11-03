@@ -21,6 +21,7 @@ MARKER='Managed by metacube-rgb-dkms installer'
 WRITES=''
 PLATFORM=0
 RESTORE=0
+WEB_ONLY=0
 OLD_INSTALLED=0
 OLD_REMOVED=0
 WEB_RUNNING=0
@@ -38,12 +39,14 @@ usage(){
   cat <<'TXT'
 Usage: bash install.sh [--enable-writes | --disable-writes]
                        [--enable-platform-writes] [--enable-restore]
+       bash install.sh --web-only
   --enable-writes          Allow RGB writes. Omitted => preserve current policy.
   --disable-writes         Force all firmware writes off.
   --enable-platform-writes ALSO enable OEM performance/keyboard button writes.
                            Experimental, not previously tested on this PVE.
   --enable-restore         Enable boot light restoration, saving initial preset
                            only when not already present.
+  --web-only               Update Web/CLI files only; no DKMS or kernel changes.
   No web listener is enabled automatically; start 'metacube-rgb web'.
 TXT
 }
@@ -93,6 +96,15 @@ rollback_on_exit(){
   local rc="$1" running
   trap - EXIT
   if [[ "$rc" -ne 0 && "$UPGRADE_COMMITTED" -ne 1 && -n "$SNAPSHOT" ]]; then
+    if [[ "$WEB_ONLY" -eq 1 ]]; then
+      printf 'Web-only update failed. Restoring the installed Web files...\n' >&2
+      restore_managed_paths
+      if [[ "$WEB_RUNNING" -eq 1 ]]; then
+        systemctl start metacube-rgb-web.service 2>&1 || true
+      fi
+      rm -rf -- "$SNAPSHOT"
+      exit "$rc"
+    fi
     printf 'Upgrade failed. Attempting to restore the pre-upgrade v1 configuration...\n' >&2
     systemctl stop metacube-rgb-web.service 2>/dev/null || true
     if [[ -d "/sys/module/$MODULE" ]]; then
@@ -138,11 +150,35 @@ for arg in "$@"; do
     --disable-writes) WRITES=0 ;;
     --enable-platform-writes) PLATFORM=1; WRITES=1 ;;
     --enable-restore) RESTORE=1; WRITES=1 ;;
+    --web-only) WEB_ONLY=1 ;;
     -h|--help) usage; exit 0 ;;
     *) usage >&2; fail "Unknown argument: $arg" ;;
   esac
 done
 [[ $EUID -eq 0 ]] || fail 'Must run as root on the PVE host.'
+if [[ "$WEB_ONLY" -eq 1 ]]; then
+  [[ -z "$WRITES" && "$PLATFORM" -eq 0 && "$RESTORE" -eq 0 ]] || fail '--web-only cannot be combined with driver options'
+  [[ -f "$LIBROOT/.managed" && -f "$CLI" ]] || fail 'Existing MetaCube installation not found'
+  grep -Fq "$MARKER" "$CLI" || fail 'Unmanaged CLI; refusing to update'
+  [[ -d "$LIBROOT/python/metacube_rgb" && -d "$LIBROOT/python/web" ]] || fail 'Existing Web assets not found'
+  need python3
+  need systemctl
+  python3 -m py_compile "$HERE/metacube_rgb/cli.py" "$HERE/metacube_rgb/web.py" "$HERE/metacube_rgb/__init__.py" || fail 'Python syntax check failed'
+  snapshot_managed_paths
+  if systemctl is-active --quiet metacube-rgb-web.service 2>/dev/null; then
+    WEB_RUNNING=1
+    systemctl stop metacube-rgb-web.service
+  fi
+  info 'Updating Web/CLI files without touching the DKMS module'
+  for file in "$HERE"/metacube_rgb/*.py; do install -m 0644 "$file" "$LIBROOT/python/metacube_rgb/$(basename "$file")"; done
+  for file in "$HERE"/web/*; do install -m 0644 "$file" "$LIBROOT/python/web/$(basename "$file")"; done
+  "$CLI" web --help >/dev/null
+  if [[ "$WEB_RUNNING" -eq 1 ]]; then systemctl start metacube-rgb-web.service; fi
+  UPGRADE_COMMITTED=1
+  info 'Web-only update complete. Driver version and signing unchanged.'
+  info 'Manual Web sessions must be restarted to use the new defaults.'
+  exit 0
+fi
 [[ "$(cat /sys/class/dmi/id/sys_vendor 2>/dev/null)" == 'METAPHYUNI' ]] || fail 'Unexpected vendor; refusing to run.'
 [[ "$(cat /sys/class/dmi/id/product_name 2>/dev/null)" == 'MetaCube' ]] || fail 'Unexpected product; refusing to run.'
 [[ "$(cat /sys/class/dmi/id/board_name 2>/dev/null)" == 'M11 Series-HPT' ]] || fail 'Only M11 Series-HPT is currently supported.'
@@ -253,7 +289,7 @@ fi
 if [[ "$WEB_RUNNING" == 1 ]]; then systemctl start metacube-rgb-web.service; fi
 "$CLI" status
 info "Installed v$VER. CLI: metacube-rgb web"
-info 'Web listens on loopback by default, never auto-enabled as a service.'
-info 'For SSH forwarding: ssh -L 8765:127.0.0.1:8765 root@<PVE-IP>'
+info 'Web defaults to 0.0.0.0:8765 (LAN access); restrict access using host firewall.'
+info 'Use --host <LAN-IP> to limit the listener to a single network interface.'
 info 'Web token file: /etc/metacube-rgb/web.token (owner-only)'
 info 'No firmware writes performed during installation.'
