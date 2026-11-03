@@ -38,6 +38,43 @@ HEX = re.compile(r'^[0-9A-F]{6}$')
 RAW = re.compile(r'^[0-9a-fA-F]{64}$')
 LOCK = threading.RLock()
 
+# Safe recovery subset confirmed on an actual MetaCube M11. Advanced OEM RGB
+# behavior is still unverified and previously caused loss of visible LED output
+# until a full AC power cycle. Firmware GET cannot confirm physical light output.
+SAFE_EFFECT_PARAMS = {'speed': 2, 'direction': 0, 'cycle': 0, 'transition': 0}
+UNSAFE_OEM_READS = {'keyboard_mode', 'keyboard_brightness'}
+
+
+def experimental_rgb_enabled() -> bool:
+    """Only the local service operator can opt in; web clients cannot unlock it."""
+    return os.environ.get('METACUBE_EXPERIMENTAL_RGB') == '1'
+
+
+def rgb_experimental_reasons(target: dict) -> list[str]:
+    """Unverified effects which must not be written by default."""
+    reasons = []
+    if target['mode'] == 'spin':
+        reasons.append('rotation mode')
+    if len(target['colors']) != 1:
+        reasons.append('multi-color output')
+    for name, safe in SAFE_EFFECT_PARAMS.items():
+        if target[name] != safe:
+            reasons.append(f'{name}={target[name]} (safe baseline: {safe})')
+    return reasons
+
+
+def enforce_rgb_safety(target: dict):
+    reasons = rgb_experimental_reasons(target)
+    if reasons and not experimental_rgb_enabled():
+        raise MetaCubeError(
+            'Experimental RGB effect blocked: ' + ', '.join(reasons) +
+            '. A previous advanced-effect test left LEDs dark until full AC power-off. '
+            'This safeguard can only be unlocked locally with '
+            'METACUBE_EXPERIMENTAL_RGB=1 (at your own risk). '
+            'Return to single-color breath/steady/off, speed=2, direction=0, cycle=0, transition=0.'
+        )
+    return reasons
+
 class MetaCubeError(Exception):
     pass
 
@@ -181,6 +218,7 @@ class Device:
             'writable': self.flag('allow_writes'),
             'platform_writable': self.flag('allow_platform_writes'),
             'extended': (self.wmi_dir / 'ambient_apply').exists(),
+            'rgb_experimental_enabled': experimental_rgb_enabled(),
             'raw': raw.lower(),
         }
 
@@ -194,6 +232,7 @@ class Device:
             target = normalize_lighting(changes, before)
             if all(target[k] == before[k] for k in target):
                 return before
+            enforce_rgb_safety(target)
             if before['extended']:
                 line = ' '.join([
                     str(MODES[target['mode']]), str(target['brightness']),
@@ -229,6 +268,9 @@ class Device:
             for name in names:
                 if name not in OEM_READS:
                     raise MetaCubeError('Unknown OEM diagnostic')
+                if name in UNSAFE_OEM_READS and os.environ.get('METACUBE_EXPERIMENTAL_OEM_READS') != '1':
+                    result[name] = {'unsupported': True, 'reason': 'Firmware ACPI AE_NOT_FOUND observed for OEM RGB diagnostics; read disabled by default'}
+                    continue
                 attr, mapping = OEM_READS[name]
                 try:
                     value = self._read(attr)

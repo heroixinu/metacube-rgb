@@ -5,6 +5,8 @@ const $$ = (selector) => [...document.querySelectorAll(selector)];
 const labels = {breath:'呼吸',steady:'常亮',spin:'旋转',off:'关闭'};
 const oemNames = {system_mode:'主机性能模式',button_brightness:'按键灯亮度',fans_rpm:'CPU / GPU 风扇',gpu_mode:'GPU 模式',fn_lock:'Fn Lock',touchpad_lock:'触摸板锁定',keyboard_mode:'键盘 RGB 模式',keyboard_brightness:'键盘 RGB 亮度',ac_type:'供电接口',cpu_temperature_raw:'原厂温度读数'};
 const M = {token:sessionStorage.getItem('metacube-token')||'', live:null,draft:null,dirty:false,presets:Array(5).fill(null),tab:'dashboard',oem:null,busy:false,online:false,baselineRaw:null,undoAvailable:false};
+function advancedRgbLocked(){return Boolean(M.live&&!M.live.rgb_experimental_enabled);}
+function draftRequiresExperimental(s){return Boolean(s&&(s.mode==='spin'||s.colors.length!==1||s.speed!==2||s.direction!==0||s.cycle!==0||s.transition!==0));}
 
 async function api(path, method='GET', payload=null){
   const headers={'Authorization':`Bearer ${M.token}`};
@@ -118,17 +120,24 @@ function refreshDraft(){
   $('#previewModeText').textContent=(labels[M.draft.mode]||'未知')+'模式';
   $('#previewColorText').textContent='#'+(M.draft.colors?.[0]||'000000') + (M.draft.colors.length>1?` +${M.draft.colors.length-1}`:'');
   const conflict=M.dirty && M.live?.raw!==M.baselineRaw;
+  const locked=advancedRgbLocked();
+  const unsafeDraft=locked&&draftRequiresExperimental(M.draft);
+  $('#rgbSafetyNotice').hidden=!locked;
+  $('[data-mode="spin"]').disabled=locked;
+  for(const id of ['speedInput','cycleInput','transitionInput','nextCycleButton'])$('#'+id).disabled=locked;
+  $$('[data-direction]').forEach(btn=>btn.disabled=locked);
   const hint=conflict?'设备已被其他操作修改，请放弃草稿后重新编辑':
-    (M.dirty?'存在尚未写入固件的改动':'当前草稿与设备同步');
+    (unsafeDraft?'此配置涉及未经验证的 RGB 高级参数，已禁止写入；请恢复为单色、呼吸/常亮、速度 2 等安全参数':
+    (M.dirty?'存在尚未写入固件的改动':'当前草稿与设备同步'));
   $('#unsavedHint').textContent=hint;
   $('#unsavedHint').classList.toggle('dirty',M.dirty || conflict);
   $('#draftStateLabel').textContent=hint;
   $('#draftStateLabel').classList.toggle('conflict',Boolean(conflict));
-  $('#applyLightingButton').disabled=!M.online||!M.live?.writable||M.busy||!M.dirty||conflict;
+  $('#applyLightingButton').disabled=!M.online||!M.live?.writable||M.busy||!M.dirty||conflict||unsafeDraft;
   $('#undoLightingButton').disabled=!M.online||!M.live?.writable||M.busy||!M.undoAvailable||M.dirty;
   $('#discardDraftButton').disabled=!M.dirty||M.busy;
   $('#inspectPacketButton').disabled=!M.online||M.busy||conflict;
-  $('#addColorButton').disabled=M.draft.colors.length>=6||M.busy;
+  $('#addColorButton').disabled=M.draft.colors.length>=6||M.busy||locked;
   previewLighting(M.draft);
 }
 function createColorEditor(){
@@ -141,8 +150,8 @@ function createColorEditor(){
     code.setAttribute('aria-label',`颜色 ${index+1} 十六进制`);
     const label=document.createElement('span');label.className='color-label';label.textContent=`颜色 ${index+1}`;
     const spacer=document.createElement('span');spacer.className='spacer';
-    const up=document.createElement('button');up.className='icon-button';up.textContent='↑';up.title='前移颜色';up.disabled=index===0;
-    const down=document.createElement('button');down.className='icon-button';down.textContent='↓';down.title='后移颜色';down.disabled=index===M.draft.colors.length-1;
+    const up=document.createElement('button');up.className='icon-button';up.textContent='↑';up.title='前移颜色';up.disabled=index===0||advancedRgbLocked();
+    const down=document.createElement('button');down.className='icon-button';down.textContent='↓';down.title='后移颜色';down.disabled=index===M.draft.colors.length-1||advancedRgbLocked();
     const remove=document.createElement('button');remove.className='icon-button';remove.textContent='×';remove.title='移除颜色';remove.disabled=M.draft.colors.length===1;
     const move=(shift)=>{const next=index+shift;[M.draft.colors[index],M.draft.colors[next]]=[M.draft.colors[next],M.draft.colors[index]];M.dirty=true;createColorEditor();refreshDraft();};
     up.addEventListener('click',()=>move(-1));down.addEventListener('click',()=>move(1));
@@ -295,6 +304,7 @@ async function applyLighting(){
   if(!M.draft || M.busy || !M.dirty)return;
   M.busy=true;refreshDraft();
   try{
+    if(advancedRgbLocked()&&draftRequiresExperimental(M.draft))throw new Error('RGB 高级效果已锁定，请先恢复安全配置');
     const result=await api('/api/lighting','POST',{...cleanLighting(M.draft),expected_raw:M.baselineRaw});
     M.dirty=false;M.undoAvailable=result.undo_available;displayStatus(result.lighting);
     toast('光效设置成功 · 固件回读验证通过');
@@ -316,7 +326,7 @@ async function inspectPacket(){
   if(!M.draft)return;
   try{
     const result=await api('/api/lighting/plan','POST',{...cleanLighting(M.draft),expected_raw:M.baselineRaw});
-    const rows=['WMI SET / 32 字节 / 仅预检',result.set_packet.toUpperCase(),'',`变更项目：${Object.keys(result.changes).join(', ')||'无'}`];
+    const rows=['WMI SET / 32 字节 / 仅预检',result.set_packet.toUpperCase(),'',`变更项目：${Object.keys(result.changes).join(', ')||'无'}`,`固件写入许可：${result.can_apply?'允许':'已锁定'}`,`高级参数：${result.experimental_reasons.join(', ')||'无'}`];
     $('#packetText').textContent=rows.join('\n');$('#packetCard').hidden=false;
     $('#packetCard').scrollIntoView({block:'nearest',behavior:'smooth'});
   }catch(e){toast('数据包预检失败：'+e.message,true);}

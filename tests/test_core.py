@@ -64,7 +64,8 @@ class DeviceTests(unittest.TestCase):
             data[6:24]=bytes.fromhex(''.join(colors)).ljust(18,b'\0')
             data[24:29]=bytes(nums[1:6])
             (self.wmi/'ambient_raw').write_text(data.hex()+'\n')
-        with patch.object(self.device,'_write',side_effect=fake_write):
+        with patch.dict(os.environ, {'METACUBE_EXPERIMENTAL_RGB':'1'}), \
+             patch.object(self.device,'_write',side_effect=fake_write):
             result=self.device.lighting({'mode':'spin', 'colors':['FF0000','00FF00'],
                                          'brightness':175,'speed':70,'direction':1,
                                          'cycle':7,'transition':1})
@@ -81,6 +82,55 @@ class DeviceTests(unittest.TestCase):
                 self.device.lighting({'brightness':200})
             writer.assert_called_once()
 
+    def test_advanced_effects_blocked_before_sysfs_write(self):
+        (self.wmi/'ambient_apply').write_text('')
+        with patch.dict(os.environ, {'METACUBE_EXPERIMENTAL_RGB':'0'}), \
+             patch.object(self.device,'_write') as writer:
+            for change in ({'mode':'spin'}, {'speed':20}, {'direction':1},
+                           {'cycle':1}, {'transition':1},
+                           {'colors':['FF0000','00FF00']}):
+                with self.subTest(change=change), self.assertRaisesRegex(MetaCubeError,'Experimental RGB effect blocked'):
+                    self.device.lighting(change)
+            writer.assert_not_called()
+
+    def test_verified_breath_brightness_remains_allowed(self):
+        (self.wmi/'ambient_apply').write_text('')
+        def emulate(attr,value):
+            data=bytearray.fromhex((self.wmi/'ambient_raw').read_text().strip())
+            parts=value.split()
+            data[4]=int(parts[0]);data[24]=int(parts[1])
+            data[25:29]=bytes(map(int,parts[2:6]))
+            colors=parts[6].split(',')
+            data[5]=len(colors)
+            data[6:24]=bytes.fromhex(''.join(colors)).ljust(18,b'\x00')
+            (self.wmi/'ambient_raw').write_text(data.hex())
+        with patch.dict(os.environ, {'METACUBE_EXPERIMENTAL_RGB':'0'}), \
+             patch.object(self.device,'_write',side_effect=emulate) as writer:
+            result=self.device.lighting({'mode':'steady','colors':['FF0000'],'brightness':255,
+                                         'speed':2,'direction':0,'cycle':0,'transition':0})
+        self.assertEqual(result['mode'],'steady')
+        self.assertEqual(result['brightness'],255)
+        writer.assert_called_once()
+
+    def test_oem_keyboard_rgb_probe_suppressed(self):
+        with patch.dict(os.environ, {'METACUBE_EXPERIMENTAL_OEM_READS':'0'}), \
+             patch.object(self.device,'_read',side_effect=AssertionError('Forbidden WMI probe')):
+            results=self.device.read_oem(['keyboard_mode','keyboard_brightness'])
+        self.assertTrue(results['keyboard_mode']['unsupported'])
+        self.assertTrue(results['keyboard_brightness']['unsupported'])
+        self.assertIn('disabled',results['keyboard_mode']['reason'])
+
+    def test_web_real_device_guards_advanced_effects(self):
+        api=Api(self.device,Presets(self.root/'presets-real.json'),demo=False)
+        state=api.read('/api/status')['lighting']
+        self.assertFalse(state['rgb_experimental_enabled'])
+        with patch.dict(os.environ, {'METACUBE_EXPERIMENTAL_RGB':'0'}):
+            plan=api.write('/api/lighting/plan',{'mode':'spin','speed':55})
+            self.assertFalse(plan['can_apply'])
+            self.assertGreater(len(plan['experimental_reasons']),0)
+            with self.assertRaisesRegex(MetaCubeError,'Experimental RGB effect blocked'):
+                api.write('/api/lighting',{'mode':'spin','speed':55})
+
     def test_oem_platform_requires_two_flags(self):
         (self.wmi/'oem_button_brightness').write_text('2\n')
         (self.params/'allow_platform_writes').write_text('Y\n')
@@ -92,8 +142,9 @@ class DeviceTests(unittest.TestCase):
                 self.device.platform('button_brightness',3)
 
     def test_extended_requires_v2(self):
-        with self.assertRaisesRegex(MetaCubeError,'require the v2'):
-            self.device.lighting({'colors':['FF0000','00FF00']})
+        with patch.dict(os.environ, {'METACUBE_EXPERIMENTAL_RGB':'1'}):
+            with self.assertRaisesRegex(MetaCubeError,'require the v2'):
+                self.device.lighting({'colors':['FF0000','00FF00']})
 
     def test_oem_restrictions(self):
         with self.assertRaisesRegex(MetaCubeError,'locked'):

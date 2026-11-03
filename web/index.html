@@ -41,6 +41,7 @@
   </section>
   <section id="view-lighting" class="view">
     <div class="heading-block compact"><div class="eyebrow">LIGHTING STUDIO <span class="line"></span> OEM AMBIENT PROTOCOL</div><h1>光效 <em>工作室.</em></h1><p>机身 RGB 专用工作室：先编辑、再预览，只有点击「应用到设备」才会写入固件。</p></div>
+    <div id="rgbSafetyNotice" class="rgb-safety-notice" role="status" hidden>安全保护已启用：之前高级光效测试曾导致灯光停止输出，需完整断电恢复。当前只允许单色、呼吸/常亮/关闭和亮度；旋转、多色、速度、方向、循环、渐变默认禁止写入。只有本机管理员才能通过环境变量显式解锁，解锁后仍有硬件风险。</div>
     <div class="rgb-actions"><div><strong>RGB 编辑状态</strong><span id="draftStateLabel">当前配置已同步</span></div><div class="rgb-action-buttons"><button class="outline-button small" id="discardDraftButton">↺ 放弃未应用修改</button><button class="outline-button small" id="undoLightingButton" disabled>撤销上一次应用</button><button class="outline-button small" id="inspectPacketButton">查看 WMI 数据包</button></div></div>
     <div class="light-layout"><div class="light-main">
       <article class="card effect-card"><div class="card-heading"><div><span class="tiny-label">01 / EFFECT</span><h3>灯光模式</h3></div><span class="hint">选择一个效果</span></div>

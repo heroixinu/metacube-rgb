@@ -7,7 +7,8 @@ from pathlib import Path
 import sys
 from .core import (Device, MODES, PERFORMANCE_MODES, MetaCubeError,
                    Presets, read_boot_config, save_boot_config,
-                   normalize_lighting, build_ambient_set_packet, _atomic_write)
+                   normalize_lighting, build_ambient_set_packet, _atomic_write,
+                   rgb_experimental_reasons, experimental_rgb_enabled)
 from .web import DEFAULT_TOKEN, serve
 
 
@@ -68,6 +69,7 @@ def main(argv=None):
                 print(f'Speed: {state["speed"]} | Direction: {state["direction"]}')
                 print(f'Cycle: {state["cycle"]} | Transition: {state["transition"]}')
                 print(f'Writable: {state["writable"]} | Platform writes: {state["platform_writable"]}')
+                print(f'Advanced RGB effects unlocked: {state["rgb_experimental_enabled"]}')
                 print(f'Raw: {state["raw"]}')
         elif args.command in ('mode','color','brightness','speed','direction','cycle','transition'):
             payload={'colors':[args.value]} if args.command=='color' else {args.command:args.value}
@@ -86,6 +88,8 @@ def main(argv=None):
                 print(json.dumps({'current':{k:before[k] for k in target},
                                   'target':target,
                                   'set_packet':build_ambient_set_packet(before['raw'],target),
+                                  'experimental_reasons':rgb_experimental_reasons(target),
+                                  'can_apply':experimental_rgb_enabled() or not rgb_experimental_reasons(target),
                                   'dry_run':True},indent=2,ensure_ascii=False))
             else:
                 print(json.dumps(dev.lighting(changes,expected_raw=args.expected_raw),indent=2))

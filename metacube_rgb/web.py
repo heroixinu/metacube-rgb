@@ -14,7 +14,8 @@ import sys
 import threading
 from urllib.parse import urlsplit
 from . import __version__
-from .core import Device, MetaCubeError, MetaCubeConflict, Presets, normalize_lighting, build_ambient_set_packet
+from .core import (Device, MetaCubeError, MetaCubeConflict, Presets, normalize_lighting,
+                   build_ambient_set_packet, rgb_experimental_reasons, experimental_rgb_enabled)
 from .metrics import Sampler
 
 WEB_FILES = {
@@ -41,6 +42,7 @@ class DemoDevice(Device):
                 'color_count':len(data['colors']),
                 'mode_number': MODES[data['mode']],
                 'writable':True,'platform_writable':False,
+                'rgb_experimental_enabled':True,
                  'extended':True,'raw':self._raw()}
 
     def _raw(self):
@@ -112,7 +114,9 @@ class Api:
                         'target':target,
                         'changes':{k:{'from':before[k], 'to':target[k]} for k in fields if before[k] != target[k]},
                         'set_packet':build_ambient_set_packet(before['raw'],target),
-                        'note':'Dry run only; no WMI SET is issued. Hardware effect remains unverified.'}
+                        'experimental_reasons':rgb_experimental_reasons(target),
+                        'can_apply':self.demo or experimental_rgb_enabled() or not rgb_experimental_reasons(target),
+                        'note':'Dry run only; no WMI SET is issued. Physical LED output cannot be confirmed by WMI GET.'}
         if path == '/api/lighting':
             changes=dict(obj)
             expected=changes.pop('expected_raw',None)

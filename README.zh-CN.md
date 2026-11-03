@@ -1,4 +1,4 @@
-# MetaCube RGB Web v2.1.1（Web 修复版；DKMS 驱动保持 2.1.0）
+# MetaCube RGB Web v2.1.2（高级光效故障保护；DKMS 驱动保持 2.1.0）
 
 这是针对 **METAPHYUNI MetaCube / M11 Series-HPT** 的 Linux 原生 WMI 控制中心。基于你提供的 Windows「玄机中枢」ControlCenter 安装包，独立实现原厂可见的机身 RGB 编辑界面、系统设置和监控能力。
 
@@ -201,3 +201,29 @@ python3 tests/test_browser_rgb.py
 ## 尚未覆盖或刻意不开放的原厂功能
 
 原厂 Windows 程序的系统信息、性能档位与按键灯已由 v2 提供只读或显式解锁的功能；RGB 键盘 `0x10–0x12` 仅做只读能力检测，并未确认这台 MetaCube M11 实际存在对应硬件。GPU 模式切换、风扇强制转速和 CPU 功耗写入不属于本次 RGB 专项范围，不应在 PVE 宿主机上未经验证就开放。
+
+## v2.1.2：高级 RGB 灯光故障后的保护模式
+
+MetaCube M11 在修改旋转动效速度后出现了**固件仍可回读，但实体 LED 不再发光**的情况；完整关机并拔掉交流电源后恢复正常。故障原因尚未确定，不能把 WMI GET 成功等同于 LED 实际亮起。
+
+本版本只更改 Python/Web/CLI，不重新编译或加载内核模块。为避免误操作：
+
+- 默认放行已经验证的**单色呼吸、单色常亮、关闭以及亮度/单色更改**，安全基线为 `speed=2 direction=0 cycle=0 transition=0`。
+- 默认拒绝所有未验证的**旋转、多色、速度、方向、循环和渐变**固件写入（CLI、Web、预设应用和开机恢复共用守卫）。
+- Web 会灰掉相应编辑器按钮，显示醒目提示；WMI 数据包预览仍可使用，但明确标注是否允许写入。
+- 对可触发 `AE_NOT_FOUND` 的 OEM 键盘 RGB 只读探测，默认不再发送对应 WMI 请求。
+- 若你准备在维护窗口继续实验，必须由 PVE 本地管理员在服务启动前显式设置 `METACUBE_EXPERIMENTAL_RGB=1`；Web 请求中的参数无法解除保护。启用后仍存在实体灯带熄灭、需要完整断电恢复的风险。
+- 如果必须研究不支持的 OEM RGB 键盘 WMI 只读函数，需要另行设置 `METACUBE_EXPERIMENTAL_OEM_READS=1`，这并不表示该硬件存在或可安全调用。
+
+**仅更新应用层（无需 DKMS 编译、签名或 PVE 重启）：**
+
+```bash
+cd /root/metacube-rgb
+git pull --ff-only
+bash install.sh --web-only
+metacube-rgb status
+```
+
+手动运行的旧版 `metacube-rgb web` 需要先 `Ctrl+C` 退出，再重新启动；通过 systemd 运行的 Web 服务会由安装器在更新中安全重启。
+
+> 保护仅覆盖本项目的 CLI / Web / 预设 / 开机恢复操作。拥有 root 权限的程序仍可绕过应用层，直接写入内核模块的 sysfs 文件。本版未更改驱动级写入能力。

@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.1.2 — Firmware LED output incident: experimental RGB safeguard
+
+- Default-lock unverified spin, multicolor, non-default speed/direction/cycle/transition writes for CLI/Web/presets/boot-restore; local opt-in `METACUBE_EXPERIMENTAL_RGB=1`.
+- Keep proven single-color breath/steady/off/brightness controls operational.
+- Prevent known unsupported OEM keyboard RGB WMI diagnostics by default to reduce ACPI AE_NOT_FOUND probing.
+- Web shows guarded controls and explicit firmware-write eligibility, while dry-run remains available.
+- No kernel driver changes; DKMS remains at 2.1.0. Physical LEDs had stopped emitting despite valid readback, and recovered only after a complete power disconnect.
+
 ## 2.1.1 — LAN Web startup hotfix (DKMS module remains 2.1.0)
 
 - Default `metacube-rgb web` bind address is now `0.0.0.0:8765`, with detected PVE LAN URLs shown on launch.

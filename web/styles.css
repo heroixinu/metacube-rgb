@@ -38,3 +38,8 @@
 @keyframes mc-spin{0%{background-position:0% 50%}100%{background-position:100% 50%}}
 @media(prefers-reduced-motion:reduce){.preview-strip{animation:none!important}}
 @media(max-width:540px){.rgb-actions{align-items:stretch}.rgb-action-buttons{width:100%}.rgb-action-buttons button{flex:1 1 auto}.hsv-channel{grid-template-columns:62px minmax(55px,1fr) 64px}.color-row .spacer{display:none}}
+
+/* RGB failure recovery guard: no firmware writes from the browser without server permission. */
+.rgb-safety-notice{padding:14px 18px;margin:0 0 16px;border:1px solid #be8b43;background:rgba(178,115,36,.13);color:var(--text-primary,#e9e5dc);border-radius:12px;line-height:1.6;font-size:13px}
+.rgb-safety-notice[hidden]{display:none}
+.mode-tile:disabled,.parameters-card input:disabled,.parameters-card button:disabled,.color-card button:disabled{opacity:.44;cursor:not-allowed}
