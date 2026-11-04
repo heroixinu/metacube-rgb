@@ -1,11 +1,20 @@
 # Changelog
 
-## v2.4.4 — OEM 0–10 speed and RGB write-ahead history
+## 2.4.5 — source-aware hardware sensor labels and Chinese-first monitoring UI
 
-- Open original Windows speed settings 0–10 by default; speed 2 remains the only hardware-verified speed on M11-HPT.
-- Web first-use confirmation when changing speed; no WMI write on slider input. Direct preset and template apply also prompt when speed changes.
-- Store up to 10 private full-GET-plus-RGB pre-write snapshots; fail closed if backup fails. CLI commands: `metacube-rgb history` and `metacube-rgb restore [index]`.
-- Optional administrator re-lock via `METACUBE_LOCK_SPEED_CUSTOMIZATION=1`. No changes to DKMS driver 2.3.0, fan permissions, or performance-mode safety.
+- Categorize Linux hwmon temperatures by resolved PCI/sysfs paths and device drivers, not changing `hwmonN` indices; identify KIOXIA/Solidigm NVMe SSDs from the actual controller `model`, DDR5 SPD hubs from SMBus addresses, and both Realtek NIC PHYs by PCI address.
+- Display human-readable Chinese names for CPU control temperature, AMD iGPU edge, ACPI thermal zone, memory modules, NVMe composite/internal sensors and network PHY; preserve original Linux key and device path as hover diagnostics. Do not guess physical port, RAM slot, or NVMe sensor element position.
+- Match original Windows firmware `main/small` dual-fan names and read-only GET 0x14 behavior; replace the system page’s all-caps English overlines and English fan-source note with concise Chinese while keeping protocol details available.
+- Keep full-screen console height; internal hardware-sensor region scrolls on shorter displays without introducing document scrolling. No WMI writes, fan controls or DKMS changes.
+- Add sysfs simulator unit tests and Chromium hardware monitor layout checks. See `docs/HARDWARE_SENSOR_MAPPING.md`.
+
+
+## 2.4.4 — Original OEM 0–10 speed control and durable RGB history
+
+- Speed customization is enabled by default with validated OEM integer bounds 0–10; speed 2 remains the only known-good physical setting.
+- First speed change in Web requires a session-scoped warning confirmation. Sliders still stage drafts; WMI is only written when Apply is requested. Admin override `METACUBE_LOCK_SPEED_CUSTOMIZATION=1` retains the old lock if desired.
+- Write-ahead backup of complete 32-byte firmware GET state and normalized fields for every RGB change (up to 10 snapshots, private persistent JSON), with `metacube-rgb history` and `metacube-rgb restore [1..10]` CLI commands.
+- No changes to the DKMS driver, fan-control restrictions, or platform-mode safeguards.
 
 ## v2.4.3 — 2026-11-04 · RGB full-height workbench layout
 
@@ -49,6 +58,15 @@
 - Hardware acceptance pending. DKMS 2.3.0 build required for updated Turbo gate.
 
 # Changelog
+
+## 2.4.5 — source-aware hardware sensor labels and Chinese-first monitoring UI
+
+- Categorize Linux hwmon temperatures by resolved PCI/sysfs paths and device drivers, not changing `hwmonN` indices; identify KIOXIA/Solidigm NVMe SSDs from the actual controller `model`, DDR5 SPD hubs from SMBus addresses, and both Realtek NIC PHYs by PCI address.
+- Display human-readable Chinese names for CPU control temperature, AMD iGPU edge, ACPI thermal zone, memory modules, NVMe composite/internal sensors and network PHY; preserve original Linux key and device path as hover diagnostics. Do not guess physical port, RAM slot, or NVMe sensor element position.
+- Match original Windows firmware `main/small` dual-fan names and read-only GET 0x14 behavior; replace the system page’s all-caps English overlines and English fan-source note with concise Chinese while keeping protocol details available.
+- Keep full-screen console height; internal hardware-sensor region scrolls on shorter displays without introducing document scrolling. No WMI writes, fan controls or DKMS changes.
+- Add sysfs simulator unit tests and Chromium hardware monitor layout checks. See `docs/HARDWARE_SENSOR_MAPPING.md`.
+
 
 ## 2.2.0 - OEM speed & two-fan monitor alignment
 

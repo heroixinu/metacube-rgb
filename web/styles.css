@@ -742,3 +742,29 @@ html{height:100%}
  #view-lighting .workbench-preview .preview-parameter-cell {padding:5px 8px;gap:2px}
  #view-lighting .workbench-preview .preview-commands .unsaved {font-size:9px}
 }
+
+/* v2.4.5: Chinese-first, source-aware hardware temperature presentation. */
+#view-system .card-heading .tiny-label{font-size:10px;letter-spacing:.025em;text-transform:none;color:#91a9b9;font-weight:600}
+#view-system .fan-rpm-item>small{font-size:11px;letter-spacing:0;color:#a4bfce}
+#view-system .sensor-grid{display:block;overflow-y:auto;overflow-x:hidden;min-height:0;max-height:100%;scrollbar-gutter:stable}
+#view-system .sensor-group{margin-bottom:7px}
+#view-system .sensor-group:last-child{margin-bottom:0}
+#view-system .sensor-group-title{font-size:10px;font-weight:600;color:#91b9ca;letter-spacing:0;margin:0 0 5px;line-height:1.25}
+#view-system .sensor-group-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+#view-system .sensor-group-grid .sensor{display:flex;flex-direction:column;justify-content:center;min-width:0;min-height:0;padding:6px 10px;border-radius:9px;gap:2px}
+#view-system .sensor-label{display:block;min-width:0;font-size:11px;font-weight:600;color:#b6c9d8;line-height:1.2;margin:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+#view-system .sensor-group-grid .sensor strong{display:block;font-size:19px;line-height:1.25;color:#f4f9ff}
+#view-system .sensor-detail{display:block;font-size:9px;line-height:1.25;color:#8498ac;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+#view-system .fan-monitor-card .fan-rpm-grid small{text-transform:none;letter-spacing:0}
+@media(max-width:1200px){#view-system .sensor-group-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:780px){#view-system .sensor-group-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:460px){#view-system .sensor-group-grid{grid-template-columns:1fr 1fr}#view-system .sensor-group-grid .sensor{padding:7px}}
+/* The monitor is a full-height console; only its longer metric lists scroll. */
+@media (min-width:1101px){
+  .page-container:has(#view-system.active){height:calc(100dvh - 43px);max-height:calc(100dvh - 43px);min-height:0;overflow:hidden;padding:8px 12px 11px}
+  #view-system.active{height:100%;min-height:0;display:flex;flex-direction:column}
+  #view-system .system-grid{height:100%;flex:1;min-height:0;grid-template-rows:minmax(0,.98fr) minmax(0,.94fr) minmax(0,1.42fr)}
+  #view-system .system-grid>article{min-height:0;overflow-y:auto;overflow-x:hidden}
+  #view-system .system-grid>article:nth-child(5){display:flex;flex-direction:column;overflow:hidden}
+  #view-system .system-grid>article:nth-child(5)>.sensor-grid{flex:1;min-height:0;max-height:none;overflow-y:auto}
+}

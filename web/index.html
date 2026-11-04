@@ -20,7 +20,7 @@
 </aside>
 <main class="content">
   <header class="topbar"><div class="crumb"><span>METACUBE CONTROL</span><span class="crumb-slash">/</span><span id="pageBreadcrumb">设备总览</span></div>
-  <div class="top-actions"><span class="live-tag top-live-status"><i></i><span id="dashConnection">等待连接</span></span><span class="console-timestamp top-sync-time" id="dashUpdated">尚未同步</span><button class="outline-button small" data-go="diagnostics">硬件诊断 ↗</button><span class="version-chip" id="versionChip">v2.4.3</span><button class="outline-button small" id="refreshButton">↻ 刷新设备</button></div></header>
+  <div class="top-actions"><span class="live-tag top-live-status"><i></i><span id="dashConnection">等待连接</span></span><span class="console-timestamp top-sync-time" id="dashUpdated">尚未同步</span><button class="outline-button small" data-go="diagnostics">硬件诊断 ↗</button><span class="version-chip" id="versionChip">v2.4.5</span><button class="outline-button small" id="refreshButton">↻ 刷新设备</button></div></header>
   <div class="page-container">
   <section id="view-dashboard" class="view active console-view">
     <div class="console-kpi-grid" aria-label="设备实时摘要">
@@ -67,7 +67,7 @@
         </article>
         <article class="console-panel console-preset-panel"><div class="console-panel-head"><div class="panel-heading"><span class="panel-head-icon">◈</span><div><h2>光效模板与预设</h2><small>系统模板只读 · 用户预设独立保存</small></div></div><div class="console-presets-actions"><div class="mini-tabs"><button data-dashboard-presets="system" class="active">系统模板</button><button data-dashboard-presets="user">用户预设</button></div><button class="outline-button small" data-go="lighting">管理 ↗</button></div></div><div id="dashboardPresetCards" class="dashboard-preset-grid"><div class="secondary-note">正在载入光效预设…</div></div></article>
         <div class="console-bottom-grid">
-          <article class="console-panel console-performance-panel"><div class="console-panel-head"><div class="panel-heading"><span class="panel-head-icon">◉</span><div><h2>性能模式</h2><small>OEM WMI 0x08 · 需要管理员授权</small></div></div><button class="panel-link" data-go="system">设置 ↗</button></div><div class="profile-row console-profile-row"><button data-profile="2" disabled><span>☾</span><b>静音</b><small>Quiet · 2</small></button><button data-profile="1" disabled><span>◉</span><b>均衡</b><small>Balance · 1</small></button><button data-profile="0" disabled><span>✦</span><b>狂暴</b><small>Turbo · 0</small></button></div><div class="console-panel-foot"><span id="dashProfileInfo">正在读取原厂性能档位</span></div></article>
+          <article class="console-panel console-performance-panel"><div class="console-panel-head"><div class="panel-heading"><span class="panel-head-icon">◉</span><div><h2>性能模式</h2><small>OEM WMI 0x08 · 需要管理员授权</small></div></div><button class="panel-link" data-go="system">设置 ↗</button></div><div class="profile-row console-profile-row"><button data-profile="2" disabled><span>☾</span><b>静音</b><small>档位 2</small></button><button data-profile="1" disabled><span>◉</span><b>均衡</b><small>档位 1</small></button><button data-profile="0" disabled><span>✦</span><b>狂暴</b><small>档位 0</small></button></div><div class="console-panel-foot"><span id="dashProfileInfo">正在读取原厂性能档位</span></div></article>
           <article class="console-panel console-fan-panel"><div class="console-panel-head"><div class="panel-heading"><span class="panel-head-icon">✺</span><div><h2>双风扇监控</h2><small>原厂 GET 0x14 · 每 2 秒</small></div></div><span class="read-only-pill">只读 · EC 自动温控</span></div><div class="dashboard-fan-grid"><div class="console-fan-box"><span>主风扇</span><strong><span id="dashMainFan">—</span> <small>RPM</small></strong><svg viewBox="0 0 240 54" preserveAspectRatio="none" aria-label="主风扇转速趋势"><polyline id="dashMainFanSpark" points=""/></svg></div><div class="console-fan-box"><span>小风扇</span><strong><span id="dashSmallFan">—</span> <small>RPM</small></strong><svg viewBox="0 0 240 54" preserveAspectRatio="none" aria-label="小风扇转速趋势"><polyline id="dashSmallFanSpark" points=""/></svg></div></div></article>
         </div>
       </div>
@@ -112,28 +112,28 @@
   <section id="view-system" class="view">
     <div class="system-grid">
       <article class="card wide fan-monitor-card">
-        <div class="card-heading"><div><span class="tiny-label">OEM FAN TELEMETRY / READ ONLY</span>
+        <div class="card-heading"><div><span class="tiny-label">固件只读监控</span>
           <h3>&#21407;&#21378;&#39118;&#25159;&#36716;&#36895;</h3></div>
-          <span class="hint">2s refresh &#183; Windows ControlCenter parity</span></div>
+          <span class="hint">每 2 秒刷新 · 原厂同源</span></div>
         <p class="section-copy">&#23545;&#24212;&#21407;&#29256;&#24615;&#33021;&#39029;&#30340;&#20027;&#39118;&#25159;&#21644;&#23567;&#39118;&#25159;&#36716;&#36895;&#65292;&#21482;&#35835;&#19981;&#25913;&#21464; EC &#28201;&#25511;&#31574;&#30053;&#12290;</p>
         <div class="fan-rpm-grid">
-          <div class="fan-rpm-item"><small>主风扇 / MAIN FAN</small><div class="fan-rpm-number"><strong id="mainFanRpm">--</strong><span>RPM</span></div><svg class="fan-spark" viewBox="0 0 240 54" preserveAspectRatio="none" role="img" aria-label="主风扇最近一分钟转速趋势"><polyline id="mainFanSpark" points=""/></svg></div>
-          <div class="fan-rpm-item"><small>小风扇 / SMALL FAN</small><div class="fan-rpm-number"><strong id="smallFanRpm">--</strong><span>RPM</span></div><svg class="fan-spark" viewBox="0 0 240 54" preserveAspectRatio="none" role="img" aria-label="小风扇最近一分钟转速趋势"><polyline id="smallFanSpark" points=""/></svg></div>
+          <div class="fan-rpm-item"><small>主风扇 · 原厂主通道</small><div class="fan-rpm-number"><strong id="mainFanRpm">--</strong><span>RPM</span></div><svg class="fan-spark" viewBox="0 0 240 54" preserveAspectRatio="none" role="img" aria-label="主风扇最近一分钟转速趋势"><polyline id="mainFanSpark" points=""/></svg></div>
+          <div class="fan-rpm-item"><small>小风扇 · 原厂辅助通道</small><div class="fan-rpm-number"><strong id="smallFanRpm">--</strong><span>RPM</span></div><svg class="fan-spark" viewBox="0 0 240 54" preserveAspectRatio="none" role="img" aria-label="小风扇最近一分钟转速趋势"><polyline id="smallFanSpark" points=""/></svg></div>
         </div>
         <p class="fan-autocontrol-note">原厂性能页只提供风扇 RPM 监控。风扇转速由主板 EC 自动温控；切换静音／均衡／狂暴会使用原厂性能模式，而不是手动覆盖风扇 PWM。</p>
         <p id="fanSourceNote" class="secondary-note" role="status">&#31561;&#24453;&#21407;&#21378; WMI &#21482;&#35835;&#26597;&#35810;&#8230;</p>
       </article>
-      <article class="card"><div class="card-heading"><div><span class="tiny-label">PERFORMANCE PROFILE</span><h3>主机性能模式</h3></div><span id="platformBadge" class="locked-badge">默认锁定</span></div><p class="section-copy">原厂提供 Turbo / Balance / Quiet。切换可能改变风扇及功耗策略，请在确认机型支持后操作。</p>
-        <div class="profile-row"><button data-profile="2"><span>☾</span><b>静音</b><small>Quiet · 2</small></button><button data-profile="1"><span>◉</span><b>均衡</b><small>Balance · 1</small></button><button data-profile="0"><span>✦</span><b>狂暴</b><small>Turbo · 0</small></button></div>
+      <article class="card"><div class="card-heading"><div><span class="tiny-label">原厂性能管理</span><h3>主机性能模式</h3></div><span id="platformBadge" class="locked-badge">默认锁定</span></div><p class="section-copy">原厂提供 Turbo / Balance / Quiet。切换可能改变风扇及功耗策略，请在确认机型支持后操作。</p>
+        <div class="profile-row"><button data-profile="2"><span>☾</span><b>静音</b><small>档位 2</small></button><button data-profile="1"><span>◉</span><b>均衡</b><small>档位 1</small></button><button data-profile="0"><span>✦</span><b>狂暴</b><small>档位 0</small></button></div>
         <div class="profile-info"><span id="profileCurrent">当前档位：等待原厂 WMI 读取</span><span id="acPowerStatus">供电状态：检测中</span></div>
         <p class="profile-oem-note">与原厂相同：静音/均衡直接切换；狂暴模式先验证系统 AC 在线，再进行二次确认。未授权时保持只读。</p>
         <div class="warning-panel">⚠ 此类操作涉及 EC/BIOS 性能策略。首次安装默认禁用，必须使用 <code>--enable-platform-writes</code> 另行授权。请勿将网页视为已验证的超频工具。</div>
       </article>
-      <article class="card"><div class="card-heading"><div><span class="tiny-label">BUTTON BACKLIGHT</span><h3>按键灯亮度</h3></div><span id="buttonValue" class="tiny-label">—</span></div><p class="section-copy">原厂提供 0–3 级按键灯亮度调节。该接口与机身 RGB 独立。</p>
+      <article class="card"><div class="card-heading"><div><span class="tiny-label">独立按键背光</span><h3>按键灯亮度</h3></div><span id="buttonValue" class="tiny-label">—</span></div><p class="section-copy">原厂提供 0–3 级按键灯亮度调节。该接口与机身 RGB 独立。</p>
         <div class="button-levels"><button data-button-level="0">关闭</button><button data-button-level="1">低</button><button data-button-level="2">中</button><button data-button-level="3">高</button></div><p class="secondary-note">未确认硬件是否配备独立按键背光，未解锁时仅可查询。</p>
       </article>
-      <article class="card wide"><div class="card-heading"><div><span class="tiny-label">PVE HOST</span><h3>主机信息</h3></div><span class="hint">从 Linux 系统实时获取</span></div><div class="info-grid" id="systemInfo"><span>正在读取...</span></div></article>
-      <article class="card wide"><div class="card-heading"><div><span class="tiny-label">HARDWARE SENSOR</span><h3>温度与风扇</h3></div><span class="hint">内核 hwmon</span></div><div class="sensor-grid" id="sensorList"><span>正在读取...</span></div></article>
+      <article class="card wide"><div class="card-heading"><div><span class="tiny-label">Linux 主机</span><h3>主机信息</h3></div><span class="hint">从 Linux 系统实时获取</span></div><div class="info-grid" id="systemInfo"><span>正在读取...</span></div></article>
+      <article class="card wide"><div class="card-heading"><div><span class="tiny-label">设备温度分布</span><h3>硬件温度监控</h3></div><span class="hint">按 CPU、内存、SSD、网卡归类 · 悬停查看来源</span></div><div class="sensor-grid" id="sensorList"><span>正在读取...</span></div></article>
     </div>
   </section>
   <section id="view-diagnostics" class="view">

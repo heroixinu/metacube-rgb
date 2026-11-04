@@ -1,29 +1,29 @@
-# MetaCube RGB v2.4.4 — OEM speed control and durable recovery
+# MetaCube RGB v2.4.5 — precise hardware sensor identification
 
-**Current behavior (v2.4.4):** The Linux Web/CLI uses the original Windows OEM **0–10 integer speed range**. Only speed **2** has been confirmed on the actual M11 Series-HPT device. A previous speed experiment caused the LEDs to stop emitting light until a complete AC power cycle; this remains a possibility at other speed values.
-
-- Dragging speed **only edits a browser draft**. A real WMI change happens only after **Apply**; the first speed-changing Web apply needs a per-browser-session risk confirmation. Direct preset/template applies receive the same warning when they change speed.
-- Every real RGB write first creates an atomic, private **full 32-byte GET snapshot plus RGB field data**; the newest 10 are stored in `/var/lib/metacube-rgb/rgb-history.json` (mode 0600). If backup fails, the firmware write is blocked.
-- Use `metacube-rgb history` to view snapshots and `metacube-rgb restore 1` to reapply the newest saved settings. Restore uses validated RGB fields (not arbitrary EC packets) and backs up the state before restoration.
-- To re-enable the previous speed restriction, explicitly set `METACUBE_LOCK_SPEED_CUSTOMIZATION=1` for the local Web service or CLI. Old opt-in variables for unlocking speed are no longer needed.
-- **Safety limitations:** The backups cannot recover an EC that remains unresponsive until AC power is removed. Fan control remains read-only, and performance-mode writes still require explicit authorization.
-
-Upgrade on an existing PVE installation (DKMS stays 2.3.0):
-
-```bash
-cd /root/metacube-rgb
-git pull --ff-only
-bash install.sh --web-only
-metacube-rgb web restart
-```
+The System page now identifies temperatures by their actual Linux hwmon device paths, PCI addresses, NVMe controller models, and DDR5 SPD Hub SMBus addresses. It distinguishes Ryzen CPU Tctl, Radeon iGPU edge, ACPI thermal zone, KIOXIA and Solidigm SSDs (including P44 Pro auxiliary sensors), and two RTL8125 PHYs. Original Windows WMI `GET 0x14` main/small fan RPM channels remain read-only. Chinese-first module headings replace the prior all-caps overlines; raw sensor keys are retained in hover diagnostics. Exact physical chassis locations are **not inferred**. See [sensor source map](docs/HARDWARE_SENSOR_MAPPING.md). No driver/EC changes; upgrade with `bash install.sh --web-only`.
 
 ---
 
-## Previous versions (historical behavior; current policy above takes precedence)
+## v2.4.4 — OEM speed control and durable recovery
 
-# MetaCube RGB v2.4.3 — RGB workbench layout
+The lighting studio and CLI now allow **integer speed 0–10** as in the original Windows control center. Speed **2** is the only hardware-verified value on this HPT device; first Web speed change requires an explicit one-time (per browser session) warning confirmation. Changes still apply only after clicking **Apply**, never while sliding. An earlier unsupported speed operation left the ring dark until a complete AC power cycle; this risk has not been ruled out.
 
-The RGB lighting page now uses a full-height two-row control workbench: lighting modes, OEM brightness/speed/direction/cycle/transition and a larger ring preview above; a wider 1–6 color/HSV editor and tabbed system/user preset center below. The preview always keeps the Apply button visible. Color editing and preset lists scroll only within their panels. Backend APIs, speed=2 safeguard, permission gates and DKMS 2.3.0 remain unchanged. `bash install.sh --web-only` on PVE.
+Before each real RGB WMI write, the Linux service atomically saves the current **full 32-byte GET readback plus validated RGB fields** to `/var/lib/metacube-rgb/rgb-history.json` (private mode 0600, latest 10). A backup error prevents the WMI SET. Recovery uses the validated 0x0F field writer, not arbitrary EC packets:
+
+```bash
+metacube-rgb history
+metacube-rgb restore 1   # newest pre-write state; performs one real firmware write
+```
+
+To *opt back into* a locked speed slider, set `METACUBE_LOCK_SPEED_CUSTOMIZATION=1` for the Web service process/CLI. Fan and performance safeguards are unchanged. Hardware readback cannot prove visible LED light or recover a stuck EC; an AC power-cycle may still be required.
+
+---
+
+## Previous releases (historical behavior)
+
+### v2.4.3 — RGB workbench layout
+
+The RGB lighting page now uses a full-height two-row control workbench: lighting modes, OEM brightness/speed/direction/cycle/transition and a larger ring preview above; a wider 1–6 color/HSV editor and tabbed system/user preset center below. The preview always keeps the Apply button visible. Color editing and preset lists scroll only within their panels. Backend APIs, permissions and DKMS 2.3.0 remained unchanged in v2.4.3. Speed locking was subsequently changed in v2.4.4. `bash install.sh --web-only` on PVE.
 
 ---
 
@@ -91,7 +91,7 @@ Existing PVE installation: back up current settings, then `git pull --ff-only` a
 Web-only update; DKMS kernel module remains 2.1.0.
 
 - Preview the actual top-cover ring geometry with conic RGB gradients and mode-specific animation. This is a browser approximation.
-- Spin, up to six colors, direction, cycle, transitions, and brightness remain available by default. Only animation speed differs: firmware writes with speed other than **2** are rejected unless the administrator opts in with `METACUBE_ALLOW_SPEED_CUSTOMIZATION=1` (`METACUBE_EXPERIMENTAL_RGB=1` is supported for legacy deployments).
+- Spin, up to six colors, direction, cycle, transitions, and brightness remain available by default. As of v2.4.4, speed 0–10 is allowed by default; only speed 2 has been physically verified on HPT. To enforce a lock use `METACUBE_LOCK_SPEED_CUSTOMIZATION=1`.
 - Four bundled immutable system themes, copied verbatim from the user-supplied JSON, are separate from five persistent user-defined preset slots.
 - `GET /api/templates`, `POST /api/templates/apply`, `metacube-rgb template list`, `metacube-rgb template apply ID`.
 - No hardware WMI changes. Host-only files can be installed with `bash install.sh --web-only`.
@@ -120,7 +120,7 @@ Independent Linux/PVE WMI RGB control center for **METAPHYUNI MetaCube M11 Serie
 | :---: | :---: |
 | ![System lighting templates and personal RGB preset slots](docs/screenshots/presets.webp) | ![System settings and host information panel](docs/screenshots/system.webp) |
 
-> The circular LED animation is a **browser simulation**, not a validated recording of the physical light controller. Custom effect speed remains locked to `2` by default.
+> The circular LED animation is a **browser simulation**, not a validated recording of the physical light controller. Speed is now adjustable over OEM integer range 0–10 (only 2 hardware-verified).
 
 - **RGB first:** 4 ambient modes, 1–6 editable colors, exact RGB/HSV numeric controls, 0–255 brightness, speed, spin direction, cycle value 0–11, gradient transition, color ordering and mode-specific simulated previews.
 - **Web:** `metacube-rgb web`, Bearer-token authentication, LAN access enabled by default (limit firewall exposure); WMI request preview, one-step undo and stale-state write protection.

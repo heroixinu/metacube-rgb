@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 import platform
+import re
 import shutil
 import time
 
@@ -22,28 +23,110 @@ def cpu_model():
     return platform.processor() or None
 
 
-def sensor_info():
+# Thermal labels are derived from the Linux hwmon driver AND its resolved
+# device path. An hwmon index or unqualified "Composite" is not a device ID.
+# Do not infer physical chassis locations, RAM slots, fan airflow, or SSD
+# controller/NAND placement from these paths.
+_PCI_BDF = re.compile(r'0000:([0-9a-fA-F]{2}:[0-9a-fA-F]{2}\.[0-7])')
+_I2C_ADDR = re.compile(r'\b[0-9]+-00([0-9a-fA-F]{2})\b')
+
+
+def _device_identity(chip: Path) -> tuple[Path, str | None]:
+    device = chip / 'device'
+    if device.exists():
+        resolved = device.resolve()
+    else:
+        resolved = chip.resolve()
+    matches = _PCI_BDF.findall(str(resolved))
+    return resolved, matches[-1].lower() if matches else None
+
+
+def _temperature_identity(chip_name: str, raw_label: str, device: Path,
+                          pci: str | None) -> tuple[str, str, str, str]:
+    """(Chinese title, human-readable source, category, confidence).
+
+    Confidence refers to component identity, not to a precise physical spot.
+    Raw kernel labels are kept separately for technical diagnostics.
+    """
+    raw = raw_label.strip()
+    pci_suffix = f' · PCI {pci}' if pci else ''
+    if chip_name == 'k10temp':
+        if raw.lower() in ('tctl','tdie'):
+            return ('CPU 控制温度' if raw.lower() == 'tctl' else 'CPU 芯片温度',
+                    f'AMD k10temp · {raw}{pci_suffix}', 'core', 'verified-source')
+        return ('CPU 温度', f'AMD k10temp · {raw}{pci_suffix}', 'core', 'verified-source')
+    if chip_name == 'amdgpu':
+        return ('核显边缘温度' if raw.lower() == 'edge' else '核显温度',
+                f'AMD amdgpu · {raw}{pci_suffix}', 'core', 'verified-source')
+    if chip_name == 'acpitz':
+        return ('平台热区温度', 'ACPI 热区 · 非独立主板测温点', 'core', 'logical-zone')
+    if chip_name == 'spd5118':
+        address = _I2C_ADDR.search(str(device))
+        addr = f'0x{address.group(1).upper()}' if address else '地址未知'
+        return (f'内存温度 · {addr}',
+                f'DDR5 SPD Hub · SMBus {device.name} · 物理插槽未确认',
+                'memory', 'verified-source')
+    if chip_name == 'nvme':
+        model = text(device / 'model', '') or ''
+        model = ' '.join(model.split())
+        if model.lower().startswith('solidigm'):
+            brand = 'Solidigm'
+        elif model.upper().startswith('KIOXIA'):
+            brand = 'KIOXIA'
+        elif model:
+            brand = model.split()[0]
+        else:
+            brand = 'NVMe'
+        if raw.lower() == 'composite':
+            title = f'{brand} 硬盘温度'
+            sensor_kind = 'NVMe 复合温度'
+        else:
+            # NVMe Sensor 1/2 does not guarantee controller/NAND location.
+            match = re.search(r'(\d+)$', raw)
+            index = match.group(1) if match else ''
+            title = f'{brand} 内部温度 {index}'.strip()
+            sensor_kind = f'NVMe {raw}'
+        return (title, f'{model or brand} · {sensor_kind}{pci_suffix}',
+                'storage', 'verified-source')
+    if chip_name.startswith('r8169'):
+        location = pci or '未知'
+        return (f'有线网卡温度 · {location}',
+                f'Realtek 网卡 PHY · {raw}{pci_suffix} · 非物理网口序号',
+                'network', 'verified-source')
+    return ('其他硬件温度', f'{chip_name} · {raw}{pci_suffix}', 'other', 'unclassified')
+
+
+def sensor_info(hwmon_root: Path | None = None):
+    """Read temperatures/fans and attach sysfs-grounded component identities."""
     temperatures = []
     fans = []
-    hwmon = Path('/sys/class/hwmon')
+    hwmon = Path(hwmon_root) if hwmon_root is not None else Path('/sys/class/hwmon')
     for chip in sorted(hwmon.glob('hwmon*')):
-        name = text(chip/'name','hwmon')
+        name = text(chip / 'name', 'hwmon')
+        device, pci = _device_identity(chip)
         for entry in sorted(chip.glob('temp*_input')):
             val = text(entry)
             try:
-                value = round(int(val)/1000, 1)
+                value = round(int(val) / 1000, 1)
             except (TypeError, ValueError):
                 continue
             if -30 <= value <= 125:
-                label = text(entry.with_name(entry.name.replace('_input','_label')),
-                             f'{name} {entry.stem}')
-                temperatures.append({'name': label, 'celsius': value})
+                raw = text(entry.with_name(entry.name.replace('_input', '_label')),
+                           entry.stem)
+                label, detail, category, confidence = _temperature_identity(name, raw, device, pci)
+                temperatures.append({
+                    'name': raw, 'label': label, 'detail': detail,
+                    'category': category, 'confidence': confidence,
+                    'source': name, 'pci': pci, 'sensor_key': entry.stem,
+                    'celsius': value,
+                })
         for entry in sorted(chip.glob('fan*_input')):
             value = text(entry)
             try:
                 rpm = int(value)
                 if 0 <= rpm <= 60000:
-                    fans.append({'name':f'{name} {entry.stem}', 'rpm':rpm})
+                    fans.append({'name': f'{name} {entry.stem}', 'rpm': rpm,
+                                 'source': name, 'pci': pci})
             except (TypeError, ValueError):
                 pass
     return temperatures[:30], fans[:16]

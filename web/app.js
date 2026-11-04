@@ -501,8 +501,8 @@ function renderSystem(data){
   setGauge('mem',data.memory.percent,`${fmtSize(data.memory.used)} / ${fmtSize(data.memory.total)}`);
   setGauge('disk',data.disk?.percent,`${fmtSize(data.disk?.used)} / ${fmtSize(data.disk?.total)}`);
   const temps=data.temperatures||[];
-  const candidate=temps.find(x=>/Tctl|Tdie|Package|CPU|Core/i.test(x.name))||temps[0];
-  setGauge('temp',candidate?.celsius, candidate?.name||'内核暂未提供温度传感器');
+  const candidate=temps.find(x=>x.source==='k10temp'&&/Tctl|Tdie/i.test(x.name))||temps.find(x=>x.category==='core'&&/Tctl|Tdie|Package|CPU|Core/i.test(x.name))||temps[0];
+  setGauge('temp',candidate?.celsius, candidate?.label||candidate?.name||'内核暂未提供温度传感器');
   const gpu=data.gpu||{devices:[],percent:null};
   setGauge('gpu',gpu.percent,gpu.devices?.length?`${gpu.devices.length} 个设备 · ${gpu.devices[0].driver||'驱动未知'}`:'DRM 未检测到 GPU（可能已直通）');
   const net=data.network||{};
@@ -518,12 +518,40 @@ function renderSystem(data){
     ['物理网卡',data.network?.interfaces?.map(x=>x.interface).join(' / ')||'无']];
   const inf=$('#systemInfo');inf.replaceChildren();
   for(const [label,value] of items){const box=document.createElement('div');box.className='info-item';const small=document.createElement('small');small.textContent=label;const strong=document.createElement('strong');strong.textContent=value||'—';box.append(small,strong);inf.append(box);}
+  // The UI groups recognized Linux sensors; raw hwmon keys remain available
+  // in the browser tooltip for diagnostics, not as the primary label.
   const sensors=$('#sensorList');sensors.replaceChildren();
-  for(const sensor of [...data.temperatures.map(x=>({name:x.name,value:x.celsius+' °C'})),
-                        ...data.fans.map(x=>({name:x.name,value:x.rpm+' RPM'}))].slice(0,16)){
-    const el=document.createElement('div');el.className='sensor';const small=document.createElement('small');small.textContent=sensor.name;const strong=document.createElement('strong');strong.textContent=sensor.value;el.append(small,strong);sensors.append(el);
+  const temperatureItems=(data.temperatures||[]).map(x=>({
+    label:x.label||x.name||'硬件温度',
+    detail:x.detail||x.source||x.name||'Linux hwmon',
+    origin:`原始传感器：${x.source||'hwmon'} / ${x.name||'未知'} (${x.sensor_key||'未提供'})`,
+    category:x.category||'other',value:Number.isFinite(x.celsius)?`${x.celsius.toFixed(1)} °C`:'—',
+  }));
+  const fanItems=(data.fans||[]).map(x=>({
+    label:'其他风扇转速',detail:`Linux hwmon · ${x.source||x.name||'未知'}`,
+    origin:`原始传感器：${x.name||'未知'}`,category:'other',
+    value:Number.isFinite(x.rpm)?`${x.rpm} RPM`:'—',
+  }));
+  const sensorGroups=[
+    {title:'核心与平台',items:temperatureItems.filter(x=>x.category==='core')},
+    {title:'内存、硬盘与网络设备',items:[...temperatureItems.filter(x=>x.category!=='core'),...fanItems]},
+  ];
+  for(const group of sensorGroups){
+    if(!group.items.length)continue;
+    const section=document.createElement('section');section.className='sensor-group';
+    const heading=document.createElement('h4');heading.className='sensor-group-title';heading.textContent=group.title;
+    const grid=document.createElement('div');grid.className='sensor-group-grid';
+    for(const sensor of group.items.slice(0,24)){
+      const el=document.createElement('div');el.className='sensor';
+      el.title=`${sensor.detail}\n${sensor.origin}\n物理位置以设备硬件布局为准`;
+      const small=document.createElement('small');small.className='sensor-label';small.textContent=sensor.label;
+      const strong=document.createElement('strong');strong.textContent=sensor.value;
+      const detail=document.createElement('span');detail.className='sensor-detail';detail.textContent=sensor.detail;
+      el.append(small,strong,detail);grid.append(el);
+    }
+    section.append(heading,grid);sensors.append(section);
   }
-  if(!sensors.childNodes.length)sensors.textContent='内核未暴露温度或风扇传感器，请使用 WMI 诊断进一步检查。';
+  if(!sensors.childNodes.length)sensors.textContent='Linux 尚未提供可识别的硬件温度传感器。';
   const host=$('#dashboardHostInfo');host.replaceChildren();
   const fields=[['主机名称',data.host],['设备型号',data.dmi?.product_name],['主板',data.dmi?.board_name],['BIOS',data.dmi?.bios_version],['Linux 内核',data.kernel],['CPU',data.cpu?.model]];
   for(const [name,value] of fields){const row=document.createElement('div');row.className='dashboard-host-row';const key=document.createElement('span');key.textContent=name;const val=document.createElement('b');val.textContent=value||'—';val.title=value||'暂无数据';row.append(key,val);host.append(row);}
@@ -559,10 +587,12 @@ function renderFans(data){
       }
     }
   }
-  const source={metacube_oem_0x14:'OEM WMI 0x14 (MetaCube original)',
-                bitland_0x0d_fallback:'Generic WMI 0x0D (fallback)',
-                demo:'DEMO (simulated)',unavailable:'Unavailable'}[data?.source]||'Unknown';
-  $('#fanSourceNote').textContent=source+' | '+(data?.note||'No readings available');
+  const source={metacube_oem_0x14:'原厂 WMI 0x14 · 已验证双风扇读数',
+                bitland_0x0d_fallback:'通用 WMI 0x0D 回退 · 风扇通道未确认',
+                demo:'演示读数 · 不来自真实硬件',unavailable:'暂时无法读取风扇转速'}[data?.source]||'风扇读数来源未知';
+  const note=$('#fanSourceNote');
+  note.textContent=source+'；主风扇与小风扇是原厂通道名称，不代表确定的物理安装位置。';
+  note.title=data?.note||source;
 }
 let fanReading=false;
 async function loadFans(){
