@@ -7,11 +7,11 @@
 <div class="shell">
 <aside class="sidebar">
   <div class="brand"><span class="brand-symbol">M<span class="brand-point">.</span></span><span><strong>META<span class="accent">CUBE</span></strong><small>玄机中枢 · LINUX EDITION</small></span></div>
-  <p class="side-label">控制中心</p>
+  <div class="side-device"><div class="side-device-ring"></div><span>MetaCube M11</span><small>Series-HPT · Linux / PVE</small></div><p class="side-label">设备控制</p>
   <nav class="navigation" aria-label="主导航">
-    <button class="nav-item selected" data-view="dashboard"><span class="nav-icon">◫</span> 总览 <span class="nav-line"></span></button>
-    <button class="nav-item" data-view="lighting"><span class="nav-icon">✺</span> 氛围灯 <span class="nav-tag">RGB</span></button>
-    <button class="nav-item" data-view="system"><span class="nav-icon">⚙</span> 系统设置</button>
+    <button class="nav-item selected" data-view="dashboard"><span class="nav-icon">◫</span> 控制总览 <span class="nav-line"></span></button>
+    <button class="nav-item" data-view="lighting"><span class="nav-icon">✺</span> RGB 光效 <span class="nav-tag">RGB</span></button>
+    <button class="nav-item" data-view="system"><span class="nav-icon">⚙</span> 性能与散热</button>
     <button class="nav-item" data-view="diagnostics"><span class="nav-icon">⌁</span> 硬件诊断</button>
   </nav>
   <div class="side-spacer"></div>
@@ -19,25 +19,72 @@
   <div class="side-footer"><small>M11 Series-HPT · PVE</small><span>Open-source reverse-engineered controller</span></div>
 </aside>
 <main class="content">
-  <header class="topbar"><div class="crumb"><span>METACUBE</span><span class="crumb-slash">/</span><span id="pageBreadcrumb">设备总览</span></div>
-  <div class="top-actions"><span class="version-chip" id="versionChip">v2.3.0</span><button class="outline-button small" id="refreshButton">↻ 刷新设备</button></div></header>
+  <header class="topbar"><div class="crumb"><span>METACUBE CONTROL</span><span class="crumb-slash">/</span><span id="pageBreadcrumb">设备总览</span></div>
+  <div class="top-actions"><span class="version-chip" id="versionChip">v2.4.0</span><button class="outline-button small" id="refreshButton">↻ 刷新设备</button></div></header>
   <div class="page-container">
-  <section id="view-dashboard" class="view active">
-    <div class="heading-block"><div class="eyebrow">HARDWARE CONTROL CENTER <span class="line"></span> <span id="todayText"></span></div><h1>掌控你的 <em>MetaCube.</em></h1><p>灯效、性能与硬件状态，一切尽在掌握。</p></div>
-    <div class="hero-panel">
-      <div class="hero-copy"><span class="eyebrow colored">AMBIENT LIGHT CONTROL</span><h2>让光，随心而动。</h2><p>已连接主板 WMI 固件，原生控制机身光效。</p>
-        <div class="hero-stats"><div><span>当前模式</span><strong id="heroMode">—</strong></div><div><span>光效亮度</span><strong id="heroBrightness">—</strong></div><div><span>配色数量</span><strong id="heroColors">—</strong></div></div>
-        <button class="primary-button" data-go="lighting">自定义光效 <span>↗</span></button></div>
-      <div class="hero-illustration"><div class="hero-halo halo1"></div><div class="hero-halo halo2"></div><div class="hero-halo halo3"></div><div class="hero-core"><div class="hero-core-top"></div><span>METACUBE</span><div class="hero-core-light" id="heroLight"></div></div><div class="hero-beam"></div><span class="hero-decoration">M11 SERIES / HPT</span></div>
+  <section id="view-dashboard" class="view active console-view">
+    <div class="console-heading">
+      <div><div class="console-eyebrow">M11 SERIES · HARDWARE CONTROL</div><h1>MetaCube <span>硬件控制中心</span></h1><p>RGB 光效、性能与硬件监控 · 所有设备操作均由本机固件执行</p></div>
+      <div class="console-heading-actions"><span class="live-tag"><i></i> <span id="dashConnection">等待连接</span></span><span class="console-timestamp" id="dashUpdated">尚未同步</span><button class="outline-button small" data-go="diagnostics">硬件诊断 ↗</button></div>
     </div>
-    <div class="section-heading"><div><h3>系统实时状态</h3><p>来自 PVE 宿主机，不包含虚拟机统计</p></div><span class="tiny-label">LIVE MONITOR</span></div>
-    <div class="metric-grid">
-      <article class="metric-card"><div class="metric-title">CPU 使用率 <span>◉</span></div><div class="metric-number"><strong id="cpuMetric">—</strong><small>%</small></div><div class="progress"><span id="cpuBar"></span></div><p id="cpuDetail">正在读取</p></article>
-      <article class="metric-card"><div class="metric-title">内存使用率 <span>▣</span></div><div class="metric-number"><strong id="memMetric">—</strong><small>%</small></div><div class="progress"><span id="memBar"></span></div><p id="memDetail">正在读取</p></article>
-      <article class="metric-card"><div class="metric-title">系统磁盘 <span>▥</span></div><div class="metric-number"><strong id="diskMetric">—</strong><small>%</small></div><div class="progress"><span id="diskBar"></span></div><p id="diskDetail">正在读取</p></article>
-      <article class="metric-card"><div class="metric-title">CPU 温度 <span>♨</span></div><div class="metric-number"><strong id="tempMetric">—</strong><small>°C</small></div><div class="progress"><span id="tempBar"></span></div><p id="tempDetail">依赖内核传感器</p></article>
+    <div class="console-kpi-grid" aria-label="设备实时摘要">
+      <article class="console-kpi"><span class="kpi-icon green">⌁</span><div><small>设备连接</small><strong id="dashLinkState">连接中</strong></div></article>
+      <article class="console-kpi"><span class="kpi-icon orange">✺</span><div><small>当前光效模式</small><strong id="heroMode">—</strong></div></article>
+      <article class="console-kpi"><span class="kpi-icon orange">☼</span><div><small>RGB 亮度</small><strong id="heroBrightness">—</strong><div class="kpi-mini-track"><i id="dashBrightnessBar"></i></div></div></article>
+      <article class="console-kpi"><span class="kpi-icon cyan">◉</span><div><small>主风扇 / 小风扇</small><strong id="dashFanSummary">— RPM</strong></div></article>
+      <article class="console-kpi"><span class="kpi-icon orange">◈</span><div><small>性能模式</small><strong id="dashPerf">读取中</strong></div></article>
+      <article class="console-kpi"><span class="kpi-icon green">ϟ</span><div><small>AC 供电状态</small><strong id="dashAcState">查询中</strong></div></article>
     </div>
-    <div class="quick-row"><article class="card quick-card"><div><span class="tiny-label">POWER PROFILE</span><h3>性能模式</h3><p id="dashPerf">读取需要进入系统设置</p></div><button class="outline-button" data-go="system">查看档位 ↗</button></article><article class="card quick-card"><div><span class="tiny-label">SAVED PRESETS</span><h3>5 组专属光效</h3><p>颜色与动态效果，一键恢复。</p></div><button class="outline-button" data-go="lighting">打开预设 ↗</button></article></div>
+
+    <div class="console-primary-grid">
+      <div class="console-primary-column">
+        <article class="console-panel console-rgb-panel">
+          <div class="console-panel-head"><div class="panel-heading"><span class="panel-head-icon">✺</span><div><h2>RGB 光效控制</h2><small>机身顶部圆环 · 编辑预览不会自动写入固件</small></div></div><span class="outline-state" id="dashboardDraftText">读取配置中</span></div>
+          <div class="console-rgb-body">
+            <div class="console-ring-column">
+              <div class="dashboard-ring-stage" id="dashboardRingStage" data-mode="breath">
+                <div class="dashboard-device-case">
+                  <div class="preview-ring-assembly" id="dashboardRing" role="img" aria-label="顶部 RGB 圆环模拟预览">
+                    <div class="preview-ring-motion"><div class="preview-ring-haze"></div><div class="preview-ring-band"></div><div class="preview-ring-shimmer"></div></div>
+                    <div class="preview-ring-hole"></div>
+                  </div>
+                  <b>✦</b>
+                </div>
+                <span class="ring-preview-label"><i></i> 草稿预览 · 不代表实际灯效</span>
+              </div>
+              <div class="ring-quick-status"><span id="dashModeSummary">—</span><span id="dashPaletteCount">—</span></div>
+            </div>
+            <div class="console-control-column">
+              <div class="compact-control-label">光效模式 <small>模式修改需点击应用</small></div>
+              <div class="dashboard-mode-buttons"><button class="mode-tile" data-mode="breath"><span class="mode-glyph">◉</span><b>呼吸</b></button><button class="mode-tile" data-mode="steady"><span class="mode-glyph">⬢</span><b>常亮</b></button><button class="mode-tile" data-mode="spin"><span class="mode-glyph">⟳</span><b>旋转</b></button><button class="mode-tile" data-mode="off"><span class="mode-glyph">◌</span><b>关闭</b></button></div>
+              <div class="dashboard-control-list">
+                <div class="dashboard-control-row"><label for="dashBrightnessInput">☼ 光效亮度</label><input id="dashBrightnessInput" type="range" min="0" max="10" step="1" value="7"/><output id="dashBrightnessValue">—</output></div>
+                <div class="dashboard-control-row"><span>◷ 动效速度</span><span class="console-locked-speed" id="dashSpeedLabel">2 / 10 · 默认锁定</span></div>
+                <div class="dashboard-control-row"><span>⟳ 旋转方向</span><div class="dashboard-direction"><button data-direction="0">↻ 顺时针</button><button data-direction="1">↺ 逆时针</button></div></div>
+                <div class="dashboard-control-row"><span>◌ 色彩循环</span><span id="dashCycleLabel">—</span></div>
+                <div class="dashboard-control-row"><label for="dashTransitionInput">〰 平滑渐变</label><input id="dashTransitionInput" type="checkbox"/></div>
+              </div>
+              <div class="console-rgb-actions"><button class="primary-button" id="dashboardApplyButton" disabled>应用到设备 ↗</button><button class="outline-button" data-go="lighting">高级编辑 / HSV ↗</button></div>
+            </div>
+            <div class="console-palette-column"><div class="compact-control-label">配色序列 <small id="heroColors">—</small></div><div id="dashPaletteList" class="dashboard-palette-list"><span class="secondary-note">连接设备后显示</span></div><button class="outline-button small full" data-go="lighting">＋ 编辑颜色与顺序</button><p>最多 6 色 · 颜色编辑与预设管理在光效工作室中完成</p></div>
+          </div>
+        </article>
+        <article class="console-panel console-preset-panel"><div class="console-panel-head"><div class="panel-heading"><span class="panel-head-icon">◈</span><div><h2>光效模板与预设</h2><small>系统模板只读 · 用户预设独立保存</small></div></div><div class="console-presets-actions"><div class="mini-tabs"><button data-dashboard-presets="system" class="active">系统模板</button><button data-dashboard-presets="user">用户预设</button></div><button class="outline-button small" data-go="lighting">管理 ↗</button></div></div><div id="dashboardPresetCards" class="dashboard-preset-grid"><div class="secondary-note">正在载入光效预设…</div></div></article>
+        <div class="console-bottom-grid">
+          <article class="console-panel console-performance-panel"><div class="console-panel-head"><div class="panel-heading"><span class="panel-head-icon">◉</span><div><h2>性能模式</h2><small>OEM WMI 0x08 · 需要管理员授权</small></div></div><button class="panel-link" data-go="system">设置 ↗</button></div><div class="profile-row console-profile-row"><button data-profile="2" disabled><span>☾</span><b>静音</b><small>Quiet · 2</small></button><button data-profile="1" disabled><span>◉</span><b>均衡</b><small>Balance · 1</small></button><button data-profile="0" disabled><span>✦</span><b>狂暴</b><small>Turbo · 0</small></button></div><div class="console-panel-foot"><span id="dashProfileInfo">正在读取原厂性能档位</span></div></article>
+          <article class="console-panel console-fan-panel"><div class="console-panel-head"><div class="panel-heading"><span class="panel-head-icon">✺</span><div><h2>双风扇监控</h2><small>原厂 GET 0x14 · 每 2 秒</small></div></div><span class="read-only-pill">只读 · EC 自动温控</span></div><div class="dashboard-fan-grid"><div class="console-fan-box"><span>主风扇</span><strong><span id="dashMainFan">—</span> <small>RPM</small></strong><svg viewBox="0 0 240 54" preserveAspectRatio="none" aria-label="主风扇转速趋势"><polyline id="dashMainFanSpark" points=""/></svg></div><div class="console-fan-box"><span>小风扇</span><strong><span id="dashSmallFan">—</span> <small>RPM</small></strong><svg viewBox="0 0 240 54" preserveAspectRatio="none" aria-label="小风扇转速趋势"><polyline id="dashSmallFanSpark" points=""/></svg></div></div></article>
+        </div>
+      </div>
+      <div class="console-aside-column">
+        <article class="console-panel console-host-panel"><div class="console-panel-head"><div class="panel-heading"><span class="panel-head-icon">▣</span><div><h2>主机与固件信息</h2><small>Linux / PVE · 实时读取</small></div></div><button class="panel-link" data-go="system">详情 ↗</button></div><div class="console-host-info" id="dashboardHostInfo"><span>正在读取宿主机数据…</span></div><div class="console-host-status"><span><i class="status-light"></i> WMI 接口 <strong id="dashWmiStatus">检测中</strong></span><span>系统版本 <strong id="dashWebVersion">—</strong></span></div></article>
+        <article class="console-panel console-activity-panel"><div class="console-panel-head"><div class="panel-heading"><span class="panel-head-icon">☷</span><div><h2>本次会话事件</h2><small>仅记录当前页面内实际完成的操作</small></div></div><span class="panel-head-caption">SESSION LOG</span></div><ol class="console-events" id="dashboardEvents"><li class="empty">暂无操作记录</li></ol></article>
+        <article class="console-panel console-resource-panel"><div class="console-panel-head"><div class="panel-heading"><span class="panel-head-icon">▥</span><div><h2>系统资源</h2><small>PVE 宿主机实时指标</small></div></div><button class="panel-link" data-go="system">更多 ↗</button></div><div class="dashboard-resource-grid">
+          <div class="dashboard-resource"><div class="resource-dial" id="dashCpuDial"><strong id="cpuMetric">—</strong><span>%</span></div><b>CPU</b><small id="cpuDetail">读取中</small><div class="progress"><span id="cpuBar"></span></div></div>
+          <div class="dashboard-resource"><div class="resource-dial" id="dashMemDial"><strong id="memMetric">—</strong><span>%</span></div><b>内存</b><small id="memDetail">读取中</small><div class="progress"><span id="memBar"></span></div></div>
+          <div class="dashboard-resource"><div class="resource-dial" id="dashDiskDial"><strong id="diskMetric">—</strong><span>%</span></div><b>磁盘</b><small id="diskDetail">读取中</small><div class="progress"><span id="diskBar"></span></div></div>
+        </div><div class="dashboard-temp-row">CPU 温度 <strong id="tempMetric">—</strong><span>°C</span><div class="progress"><span id="tempBar"></span></div><small id="tempDetail">依赖内核传感器</small></div></article>
+      </div>
+    </div>
   </section>
   <section id="view-lighting" class="view">
     <div class="heading-block compact"><div class="eyebrow">LIGHTING STUDIO <span class="line"></span> OEM AMBIENT PROTOCOL</div><h1>光效 <em>工作室.</em></h1><p>机身 RGB 专用工作室：先编辑、再预览，只有点击「应用到设备」才会写入固件。</p></div>

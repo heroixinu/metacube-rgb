@@ -1,3 +1,19 @@
+# MetaCube RGB Web v2.4.0 — compact hardware control console
+
+Web/CLI-only visual redesign; kernel WMI DKMS remains **2.3.0**. Based on the selected orange/cyan dense dashboard concept, reuses existing OEM-protocol backend APIs and preserves current access-control gates.
+
+- New overview command console: six live status tiles (device, RGB mode, brightness, main/small fan RPM, performance mode, AC supply); RGB ring simulation, mode/direction/brightness/transition draft controls and 1–6 color readout; system/user preset tiles; live fan charts; OEM performance modes; host/BIOS/system resource indicators and session-only operation history.
+- All values on the live page are returned by the host (`/api/status`, `/api/system`, `/api/profile`, `/api/fans`, `/api/templates`, `/api/presets`). No manufactured fan/CPU/power event data. Session history is ephemeral and records only actions confirmed by this browser session, not daemon audit logs.
+- Draft-only edits: clicking mode, brightness, direction or transition **never writes WMI automatically**. Only “应用到设备” or existing preset-specific immediate-apply actions send API writes; optimistic WMI readback check and speed=2 protection remain intact.
+- No fan PWM controls added. OEM profile writes remain locked unless explicitly authorized on PVE. The full RGB/HSV editor, import/export, system profile controls and diagnostics stay available in their existing tabs.
+- Responsive desktop/tablet/mobile layout. No external CSS/JS frameworks or assets.
+
+Upgrade with `cd /root/metacube-rgb && git pull --ff-only && bash install.sh --web-only` (no DKMS rebuild). Restart an existing manually launched foreground Web process; systemd Web service is restarted by the installer if active.
+
+The new console is browser-simulated and does not claim that the RGB display matches LED physical timing. Hardware status and command safety are unchanged.
+
+---
+
 # MetaCube RGB Web v2.3.1 — background service CLI (kernel module stays v2.3.0)
 
 `metacube-rgb web` still starts the server in the foreground. On an installed PVE host, new systemd-backed commands control the existing service without unmanaged PID files or extra daemon processes:
@@ -51,11 +67,13 @@ Independent Linux/PVE WMI RGB control center for **METAPHYUNI MetaCube M11 Serie
 
 ## Screenshots / 界面截图
 
-> Screenshots rendered from the v2.1.3 Web UI using **simulated device status and demo host metrics**. No physical RGB hardware was controlled to create these images.
+> The overview screenshot is generated from **v2.4.0** with simulated device status and demo host metrics; other feature screenshots illustrate the still-available detailed editor and settings. No physical RGB hardware was controlled to create these images.
 
 ### Dashboard · Device overview
 
-![MetaCube RGB Web dashboard with live metric cards and lighting summary](docs/screenshots/overview.webp)
+![MetaCube v2.4.0 dense orange-and-cyan command console with OEM RGB ring, presets and fans](docs/screenshots/overview.webp)
+
+[Mobile layout preview](docs/screenshots/overview-mobile.webp)
 
 ### Lighting studio · Top-cover RGB ring preview
 

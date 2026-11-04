@@ -1,3 +1,11 @@
+## 2.4.0 — compact orange/cyan MetaCube control console
+
+- Redesign overview as a high-information-density hardware command center with circular RGB lighting simulation, synchronized draft inputs, user/system presets, dual-fan RPM trends, OEM mode readout and real host resource / firmware info.
+- Session-local event log shows only successful interactions; no fabricated metrics or historical events.
+- Existing Web APIs and device protocol remain unchanged. All edits stage as draft until explicit apply; speed=2 default guard, EC auto-fan control, and OEM performance-write opt-in remain enforced.
+- Add desktop/mobile Chromium console smoke test (mock WMI) and preserve legacy RGB editor tests.
+- Web/Python v2.4.0; DKMS remains 2.3.0. Upgrade using `bash install.sh --web-only`.
+
 ## 2.3.1 — systemd-backed Web lifecycle commands
 
 - Add `metacube-rgb web start / stop / restart / status`, backed by the installed `metacube-rgb-web.service` instead of forking a root-owned ad-hoc process. Existing `metacube-rgb web` foreground invocation is unchanged.

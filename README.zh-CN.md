@@ -1,3 +1,22 @@
+# v2.4.0 全新高密度硬件中控台
+
+新版总览采用橙色 / 青色的深色模块化布局：连接状态、光效模式、亮度、主/小风扇 RPM、性能模式与 AC 供电集中展示； RGB 圆环、模式按钮、亮度档位、方向、渐变和配色序列合并到主工作台；预设分系统模板/用户预设；下方提供性能档位、双风扇趋势、真实主机信息与系统资源。
+
+**安全与行为不变：** 总览更改 RGB 只修改浏览器草稿，点击“应用到设备”才发送 WMI SET；速度默认锁定为 2（与 v2.3.1 一致）。风扇功能仍然只读，不提供手动 PWM 写入。静音/均衡/狂暴写入默认受 `--enable-platform-writes` 保护。总览中的“本次会话事件”仅记录这个浏览器页面发起且成功的操作，不是系统审计日志，不会伪造历史消息。
+
+升级：
+
+```bash
+cd /root/metacube-rgb
+git pull --ff-only
+bash install.sh --web-only
+metacube-rgb web status
+```
+
+通过前台手工运行 `metacube-rgb web` 的用户，需要先 Ctrl+C 并重新启动。通过 `metacube-rgb web start` 管理的用户，安装器会在服务已运行时自动重启。**驱动仍为 2.3.0，不需要重启 PVE。**
+
+---
+
 # v2.3.1：Web 后台服务管理（DKMS 内核模块仍为 2.3.0）
 
 原来的 `metacube-rgb web` 继续前台运行；新增以下命令，无须 `nohup`、`&` 或 PID 文件：
@@ -100,7 +119,9 @@ metacube-rgb fans
 
 ### 设备总览
 
-![MetaCube Web 设备总览：RGB 灯光状态和系统监控](docs/screenshots/overview.webp)
+![MetaCube v2.4.0 高密度硬件中控台：RGB 圆环、预设、风扇、性能、系统资源](docs/screenshots/overview.webp)
+
+[移动端布局预览](docs/screenshots/overview-mobile.webp)
 
 ### RGB 光效工作室 · 圆环预览
 

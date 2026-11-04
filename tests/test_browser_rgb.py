@@ -70,21 +70,21 @@ def main():
             page.locator('#systemTemplateList .system-template-item').first.wait_for(timeout=3000)
             assert page.locator('#systemTemplateList .system-template-item').count()==4
             assert page.locator('#speedInput').is_disabled(), 'Speed slider must be locked'
-            assert page.locator('button.mode-tile[data-mode="spin"]').is_enabled(), 'Spin mode must remain enabled'
+            assert page.locator('#view-lighting button.mode-tile[data-mode="spin"]').is_enabled(), 'Spin mode must remain enabled'
             assert page.locator('#addColorButton').is_enabled(), 'Multicolor must remain available'
             assert 'conic-gradient' in page.locator('#previewRing').evaluate('(el) => el.style.getPropertyValue("--ring-palette")')
             # Loading a built-in theme must not consume or overwrite any user slots.
             first=page.locator('#systemTemplateList .system-template-item').first
             first.get_by_text('载入编辑器').click()
             assert page.locator('#colorEditor .color-row').count()==4
-            assert page.locator('button.mode-tile[data-mode="spin"]').get_attribute('class').find('active')>=0
+            assert page.locator('#view-lighting button.mode-tile[data-mode="spin"]').get_attribute('class').find('active')>=0
             assert page.locator('#systemTemplateList .system-template-item').count()==4
             # The rest of the test uses a fresh 3-color draft.
             page.once('dialog',lambda dialog:dialog.accept())
             page.locator('#discardDraftButton').click()
             page.locator('#addColorButton').click()
             assert page.locator('#colorEditor .color-row').count()==4
-            page.locator('button.mode-tile[data-mode="spin"]').click()
+            page.locator('#view-lighting button.mode-tile[data-mode="spin"]').click()
             page.locator('#nextCycleButton').click()
             page.locator('#colorEditor details').first.click()
             assert page.locator('#colorEditor input[type=number]').count()>=6
@@ -112,7 +112,7 @@ def main():
             assert page.locator('#brightnessInput').get_attribute('max')=='10'
             assert page.locator('#acPowerStatus').inner_text().find('在线')>=0
             assert page.locator('#profileCurrent').inner_text().find('均衡')>=0
-            assert page.locator('[data-profile="0"]').is_disabled() # OEM profile writes disabled in demo
+            assert page.locator('#view-system [data-profile="0"]').is_disabled() # OEM profile writes disabled in demo
             assert page.locator('#mainFanSpark').count()==1
             assert page.locator('#smallFanSpark').count()==1
             page.locator('[data-view="lighting"]').click()

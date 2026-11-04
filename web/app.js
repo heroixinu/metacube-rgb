@@ -4,7 +4,7 @@ const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => [...document.querySelectorAll(selector)];
 const labels = {breath:'呼吸',steady:'常亮',spin:'旋转',off:'关闭'};
 const oemNames = {system_mode:'主机性能模式',button_brightness:'按键灯亮度',fans_rpm:'CPU / GPU 风扇',gpu_mode:'GPU 模式',fn_lock:'Fn Lock',touchpad_lock:'触摸板锁定',keyboard_mode:'键盘 RGB 模式',keyboard_brightness:'键盘 RGB 亮度',ac_type:'供电接口',cpu_temperature_raw:'原厂温度读数'};
-const M = {token:sessionStorage.getItem('metacube-token')||'', live:null,draft:null,dirty:false,templates:[],presets:Array(5).fill(null),tab:'dashboard',oem:null,busy:false,online:false,baselineRaw:null,undoAvailable:false};
+const M = {token:sessionStorage.getItem('metacube-token')||'', live:null,draft:null,dirty:false,templates:[],presets:Array(5).fill(null),tab:'dashboard',oem:null,busy:false,online:false,baselineRaw:null,undoAvailable:false,presetView:'system',events:[]};
 function advancedRgbLocked(){return Boolean(M.live&&!M.live.speed_customization_enabled);}
 function draftRequiresExperimental(s){return Boolean(s&&s.speed!==2);}
 function editingDraft(state){
@@ -31,7 +31,72 @@ function hideLogin(){if($('#loginDialog').open)$('#loginDialog').close();}
 let toastTimer;
 function toast(message, isError=false){const el=$('#toast');el.textContent=message;el.classList.toggle('error',isError);el.classList.add('visible');clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.remove('visible'),4400);}
 function fmtSize(bytes){if(bytes===null||bytes===undefined)return '—';const unit=bytes>=2**30?'GB':'MB';return (bytes/(unit==='GB'?2**30:2**20)).toFixed(1)+' '+unit;}
-function setDot(ok){M.online=ok;$('#deviceDot').classList.toggle('online',ok);$('#deviceStatus').textContent=ok?'WMI 已连接':'硬件未连接';}
+function setDot(ok){
+  M.online=ok;$('#deviceDot').classList.toggle('online',ok);$('#deviceStatus').textContent=ok?'WMI 已连接':'硬件未连接';
+  $('#dashConnection').textContent=ok?'已连接':'连接断开';
+  $('#dashLinkState').textContent=ok?'已连接':'离线';
+  $('#dashWmiStatus').textContent=ok?'已连接':'未连接';
+}
+function logActivity(description){
+  M.events.unshift({at:new Date(),description});M.events=M.events.slice(0,6);
+  const list=$('#dashboardEvents');list.replaceChildren();
+  for(const event of M.events){
+    const row=document.createElement('li');
+    const bullet=document.createElement('span');bullet.className='event-bullet';
+    const msg=document.createElement('span');msg.textContent=event.description;
+    const time=document.createElement('time');time.textContent=event.at.toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+    row.append(bullet,msg,time);list.append(row);
+  }
+}
+function setDashboardRing(state){
+  const ring=$('#dashboardRing'),stage=$('#dashboardRingStage');
+  if(!ring||!stage||!state)return;
+  const intensity=Math.max(0,Math.min(1,state.brightness/255));
+  const speed=Number.isFinite(Number(state.speed))?Number(state.speed):2;
+  stage.dataset.mode=state.mode;
+  ring.style.setProperty('--ring-palette',ringGradientFor(state.colors,Boolean(state.transition)));
+  ring.style.setProperty('--ring-intensity',String(intensity));
+  ring.style.setProperty('--ring-period',`${(1+((10-Math.max(0,Math.min(10,speed)))/10)*7).toFixed(2)}s`);
+  ring.style.setProperty('--ring-direction',state.direction===1?'reverse':'normal');
+  ring.setAttribute('aria-label',`${labels[state.mode]||'未知'} · ${state.colors.length} 色 RGB 圆环`);
+}
+function renderDashboardPalette(){
+  const list=$('#dashPaletteList');list.replaceChildren();
+  if(!M.draft)return;
+  M.draft.colors.forEach((color,i)=>{
+    const item=document.createElement('div');item.className='dashboard-color-item';
+    const swatch=document.createElement('span');swatch.className='dashboard-color-swatch';swatch.style.background='#'+color;
+    const name=document.createElement('small');name.textContent='颜色 '+(i+1);
+    const hex=document.createElement('b');hex.textContent=color;
+    item.append(swatch,name,hex);list.append(item);
+  });
+}
+function renderDashboardPresets(){
+  const root=$('#dashboardPresetCards');root.replaceChildren();
+  $$('[data-dashboard-presets]').forEach(button=>button.classList.toggle('active',button.dataset.dashboardPresets===M.presetView));
+  const systems=M.presetView==='system';
+  const items=systems?M.templates:M.presets.map((preset,i)=>preset?{...preset,slot:i+1}:null);
+  if(!items.length||items.every(x=>!x)){
+    const empty=document.createElement('div');empty.className='dashboard-presets-empty';empty.textContent=systems?'系统模板暂不可用':'暂无已保存的用户预设，可在光效工作室保存';root.append(empty);return;
+  }
+  for(let i=0;i<items.length;i++){
+    const item=items[i];if(!item)continue;
+    const lighting=item.lighting;
+    const card=document.createElement('button');card.type='button';card.className='dashboard-preset-tile';
+    const ring=document.createElement('span');ring.className='system-template-ring';ring.style.setProperty('--template-palette',ringGradientFor(lighting.colors,Boolean(lighting.transition)));
+    const title=document.createElement('strong');title.textContent=item.name||`用户预设 ${i+1}`;
+    const meta=document.createElement('small');meta.textContent=`${labels[lighting.mode]||'光效'} · ${lighting.colors.length} 色`;
+    card.append(ring,title,meta);
+    card.title='点击载入编辑器草稿，不会写入硬件';
+    card.addEventListener('click',()=>{
+      if(M.dirty&&!confirm('覆盖当前未应用的草稿？不会修改硬件。'))return;
+      M.draft=editingDraft(lighting);M.dirty=true;createColorEditor();refreshDraft();
+      toast(`已将「${item.name}」载入草稿，点击应用到设备后才会写入`);
+    });
+    root.append(card);
+  }
+}
+
 function selectTab(name){
   if(!['dashboard','lighting','system','diagnostics'].includes(name))return;
   M.tab=name;
@@ -39,7 +104,7 @@ function selectTab(name){
   $$('.view').forEach(el=>el.classList.toggle('active',el.id==='view-'+name));
   $('#pageBreadcrumb').textContent={dashboard:'设备总览',lighting:'光效工作室',system:'系统设置',diagnostics:'硬件诊断'}[name];
   if(name==='system'){loadSystem();loadOemBasic();loadProfileStatus();loadFans();}
-  if(name==='dashboard')loadSystem();
+  if(name==='dashboard'){loadSystem();loadProfileStatus();loadFans();}
 }
 function validateColor(candidate){return /^[A-Fa-f0-9]{6}$/.test(candidate)?candidate.toUpperCase():null;}
 function rgbToHsv(hex){
@@ -85,11 +150,7 @@ function ringGradientFor(colors, smooth=true){
 }
 function applyHeroColor(state){
   if(!state)return;
-  const colors=state.colors?.length?state.colors:['000000'];
-  const c=colors[0];
-  $('#heroLight').style.background=gradientFor(colors,Boolean(state.transition));
-  $('#heroLight').style.opacity=state.mode==='off'?'0':String(Math.max(.05,state.brightness/255));
-  document.documentElement.style.setProperty('--glow','#'+c);
+  document.documentElement.style.setProperty('--glow','#'+(state.colors?.[0]||'000000'));
 }
 function previewLighting(state){
   const colors=state.colors?.length?state.colors:['000000'];
@@ -150,6 +211,22 @@ function refreshDraft(){
   $('#inspectPacketButton').disabled=!M.online||M.busy||conflict;
   $('#addColorButton').disabled=M.draft.colors.length>=6||M.busy;
   previewLighting(M.draft);
+  setDashboardRing(M.draft);
+  renderDashboardPalette();
+  const levelLabel=M.draft.brightness===0?0:Math.min(10,Math.ceil(M.draft.brightness/26));
+  $('#dashBrightnessInput').value=levelLabel;
+  $('#dashBrightnessValue').textContent=`${levelLabel}/10`;
+  $('#dashSpeedLabel').textContent=M.live?.speed_customization_enabled?`${M.draft.speed} / 10 · 可调整`:`${M.draft.speed} / 10 · 默认锁定`;
+  $('#dashCycleLabel').textContent=`${M.draft.cycle} / 11`;
+  $('#dashTransitionInput').checked=Boolean(M.draft.transition);
+  $('#dashPaletteCount').textContent=`${M.draft.colors.length} 色`;
+  $('#dashModeSummary').textContent=(labels[M.draft.mode]||M.draft.mode)+'模式';
+  $('#dashboardDraftText').textContent=conflict?'设备状态已变更 · 请放弃草稿':unsafeDraft?'速度配置已锁定':M.dirty?'草稿待应用':'已同步';
+  $('#dashboardDraftText').classList.toggle('pending',M.dirty||conflict);
+  $('#dashboardApplyButton').disabled=$('#applyLightingButton').disabled;
+  $('#dashBrightnessInput').disabled=!M.online||M.busy;
+  $('#dashTransitionInput').disabled=!M.online||M.busy;
+  renderDashboardPresets();
 }
 function createColorEditor(){
   const list=$('#colorEditor');list.replaceChildren();
@@ -234,7 +311,9 @@ function displayStatus(state){
   refreshDraft();
   $('#heroMode').textContent=labels[state.mode]||state.mode;
   $('#heroBrightness').textContent=Math.round(state.brightness/255*100)+'%';
-  $('#heroColors').textContent=String(state.color_count);
+  $('#heroColors').textContent=String(state.color_count)+' 色';
+  $('#dashBrightnessBar').style.width=(state.brightness/255*100).toFixed(1)+'%';
+  $('#dashUpdated').textContent='同步 '+new Date().toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
   $('#platformBadge').textContent=state.platform_writable?'已授权':'默认锁定';
   $('#platformBadge').classList.toggle('unlocked',state.platform_writable);
   $$('[data-button-level]').forEach(btn=>btn.disabled=!state.platform_writable);
@@ -242,8 +321,8 @@ function displayStatus(state){
   if(!state.platform_writable)$$('[data-profile]').forEach(btn=>btn.disabled=true);
 }
 async function loadStatus(){
-  try{const data=await api('/api/status');hideLogin();M.undoAvailable=Boolean(data.undo_available);displayStatus(data.lighting);if(data.demo){$('#versionChip').textContent='v2.3 · DEMO';}else{$('#versionChip').textContent='v'+data.version;}}
-  catch(e){setDot(false);refreshDraft();if(M.token && !$('#loginDialog').open)toast(e.message,true);}
+  try{const data=await api('/api/status');hideLogin();M.undoAvailable=Boolean(data.undo_available);displayStatus(data.lighting);if(data.demo){$('#versionChip').textContent='v'+data.version+' · DEMO';}else{$('#versionChip').textContent='v'+data.version;}$('#dashWebVersion').textContent='v'+data.version;}
+  catch(e){setDot(false);if(M.draft)refreshDraft();if(M.token && !$('#loginDialog').open)toast(e.message,true);}
 }
 function renderPresets(){
   const list=$('#presetList');list.replaceChildren();
@@ -265,6 +344,7 @@ function renderPresets(){
     btn('删除',!item,()=>deletePreset(slot));
     el.append(summary,controls);list.append(el);
   });
+  renderDashboardPresets();
 }
 function renderSystemTemplates(){
   const list=$('#systemTemplateList');list.replaceChildren();
@@ -291,6 +371,7 @@ function renderSystemTemplates(){
     apply.addEventListener('click',()=>applySystemTemplate(tpl));
     controls.append(load,apply);el.append(summary,controls);list.append(el);
   }
+  renderDashboardPresets();
 }
 async function loadSystemTemplates(){
   try{M.templates=(await api('/api/templates')).templates;renderSystemTemplates();}
@@ -304,7 +385,7 @@ async function applySystemTemplate(tpl){
   try{
     const result=await api('/api/templates/apply','POST',{id:tpl.id,expected_raw:M.live.raw});
     M.dirty=false;M.undoAvailable=result.undo_available;
-    displayStatus(result.lighting);toast(`系统模板「${tpl.name}」已写入（固件回读通过）`);
+    displayStatus(result.lighting);logActivity(`应用系统模板「${tpl.name}」· 固件回读通过`);toast(`系统模板「${tpl.name}」已写入（固件回读通过）`);
   }catch(e){toast('应用模板失败：'+e.message,true);}finally{M.busy=false;refreshDraft();}
 }
 async function loadPresets(){try{M.presets=(await api('/api/presets')).slots;renderPresets();}catch(e){toast(e.message,true);}}
@@ -329,7 +410,7 @@ async function applyPreset(slot){
   try{
     const result=await api('/api/presets/apply','POST',{slot,expected_raw:M.live.raw});
     M.dirty=false;M.undoAvailable=result.undo_available;
-    displayStatus(result.lighting);toast(`预设 ${slot} 已应用到主板（回读验证成功）`);
+    displayStatus(result.lighting);logActivity(`应用用户预设 ${slot} · 固件回读通过`);toast(`预设 ${slot} 已应用到主板（回读验证成功）`);
   }catch(e){toast(e.message,true);}finally{M.busy=false;refreshDraft();}
 }
 async function deletePreset(slot){
@@ -362,6 +443,7 @@ async function applyLighting(){
     if(advancedRgbLocked()&&draftRequiresExperimental(M.draft))throw new Error('动效速度自定义已锁定，请恢复为速度 2');
     const result=await api('/api/lighting','POST',{...cleanLighting(M.draft),expected_raw:M.baselineRaw});
     M.dirty=false;M.undoAvailable=result.undo_available;displayStatus(result.lighting);
+    logActivity(`应用 RGB 草稿：${labels[result.lighting.mode]||result.lighting.mode} · ${result.lighting.colors.length} 色`);
     toast('光效设置成功 · 固件回读验证通过');
   }catch(e){toast('写入未完成：'+e.message,true);}
   finally{M.busy=false;refreshDraft();}
@@ -373,6 +455,7 @@ async function undoLighting(){
   try{
     const result=await api('/api/lighting/undo','POST',{});
     M.dirty=false;M.undoAvailable=false;displayStatus(result.lighting);
+    logActivity('撤销上一次 RGB 设备配置');
     toast('已恢复上一次设备灯光配置');
   }catch(e){toast('撤销失败：'+e.message,true);}
   finally{M.busy=false;refreshDraft();}
@@ -424,6 +507,12 @@ function renderSystem(data){
     const el=document.createElement('div');el.className='sensor';const small=document.createElement('small');small.textContent=sensor.name;const strong=document.createElement('strong');strong.textContent=sensor.value;el.append(small,strong);sensors.append(el);
   }
   if(!sensors.childNodes.length)sensors.textContent='内核未暴露温度或风扇传感器，请使用 WMI 诊断进一步检查。';
+  const host=$('#dashboardHostInfo');host.replaceChildren();
+  const fields=[['主机名称',data.host],['设备型号',data.dmi?.product_name],['主板',data.dmi?.board_name],['BIOS',data.dmi?.bios_version],['Linux 内核',data.kernel],['CPU',data.cpu?.model]];
+  for(const [name,value] of fields){const row=document.createElement('div');row.className='dashboard-host-row';const key=document.createElement('span');key.textContent=name;const val=document.createElement('b');val.textContent=value||'—';val.title=value||'暂无数据';row.append(key,val);host.append(row);}
+  for(const [key,val] of [['Cpu',data.cpu?.percent],['Mem',data.memory?.percent],['Disk',data.disk?.percent]]){
+    const dial=$('#dash'+key+'Dial');if(dial)dial.style.setProperty('--usage',Number.isFinite(val)?String(Math.min(100,Math.max(0,val))):'0');
+  }
 }
 async function loadSystem(){
   try{const data=await api('/api/system');renderSystem(data);}catch(e){console.warn(e.message);}
@@ -431,6 +520,7 @@ async function loadSystem(){
 const fanSamples={main:[],small:[]}; // 30 samples * 2s = last minute
 function fanTrend(id,values){
   const poly=$(id);
+  if(!poly)return;
   if(values.length<2){poly.setAttribute('points','');return;}
   const min=Math.min(...values),max=Math.max(...values),range=Math.max(250,max-min);
   poly.setAttribute('points',values.map((v,i)=>`${(i*239/(29)).toFixed(2)},${(51-(v-min)/range*46).toFixed(2)}`).join(' '));
@@ -439,12 +529,16 @@ function renderFans(data){
   const present=Boolean(data&&data.available);
   $('#mainFanRpm').textContent=present?String(data.main_rpm):'--';
   $('#smallFanRpm').textContent=present?String(data.small_rpm):'--';
+  $('#dashMainFan').textContent=present?data.main_rpm.toLocaleString('zh-CN'):'—';
+  $('#dashSmallFan').textContent=present?data.small_rpm.toLocaleString('zh-CN'):'—';
+  $('#dashFanSummary').textContent=present?`${data.main_rpm.toLocaleString('zh-CN')} / ${data.small_rpm.toLocaleString('zh-CN')}`:'暂无读数';
   if(present){
     for(const [k,v] of [['main',data.main_rpm],['small',data.small_rpm]]){
       if(Number.isFinite(v)){
         fanSamples[k].push(v);
         if(fanSamples[k].length>30)fanSamples[k].shift();
         fanTrend(k==='main'?'#mainFanSpark':'#smallFanSpark',fanSamples[k]);
+        fanTrend(k==='main'?'#dashMainFanSpark':'#dashSmallFanSpark',fanSamples[k]);
       }
     }
   }
@@ -455,7 +549,7 @@ function renderFans(data){
 }
 let fanReading=false;
 async function loadFans(){
-  if(M.tab!=='system'||fanReading||!M.token||$('#loginDialog').open)return;
+  if(!['system','dashboard'].includes(M.tab)||fanReading||!M.token||$('#loginDialog').open)return;
   fanReading=true;
   try{renderFans(await api('/api/fans'));}
   catch(e){renderFans({available:false,source:'unavailable',note:e.message});}
@@ -468,10 +562,14 @@ function renderProfileStatus(data){
   const acLabel=ac===true?'交流电源在线 · Turbo 可选':ac===false?'未检测到在线 AC · Turbo 不可选':'交流电源状态未知 · Turbo 不可选';
   $('#acPowerStatus').textContent=acLabel;
   $('#acPowerStatus').classList.toggle('offline',ac!==true);
+  $('#dashAcState').textContent=ac===true?'已接入 AC':ac===false?'AC 未在线':'状态未知';
   const p=data.profile;
   $('#profileCurrent').textContent=p&&!p.unsupported
     ?'当前性能档位：'+({0:'狂暴',1:'均衡',2:'静音'}[p.value]||`未知 ${p.value}`)
     :'当前档位：原厂 WMI 未返回有效结果';
+  const modeName=p&&!p.unsupported?({0:'狂暴',1:'均衡',2:'静音'}[p.value]||`状态 ${p.value}`):'读取失败';
+  $('#dashPerf').textContent=modeName;
+  $('#dashProfileInfo').textContent=data.write_enabled?`当前：${modeName} · 写入已授权`:`当前：${modeName} · 切换需在宿主机授权`;
   $$('[data-profile]').forEach(btn=>{
     const id=Number(btn.dataset.profile);
     btn.disabled=!data.write_enabled||(id===0&&ac!==true);
@@ -484,7 +582,7 @@ async function loadProfileStatus(){
   catch(e){
     profileStatus=null;
     $('#acPowerStatus').textContent='交流电源检测失败 · Turbo 已阻止';
-    $('#profileCurrent').textContent='性能模式查询失败';
+    $('#profileCurrent').textContent='性能模式查询失败';$('#dashPerf').textContent='读取失败';$('#dashProfileInfo').textContent='OEM 性能查询失败';$('#dashAcState').textContent='状态未知';
     $$('[data-profile]').forEach(btn=>btn.disabled=true);
     console.warn('OEM profile status: '+e.message);
   }
@@ -529,24 +627,36 @@ async function setPlatform(control,value){
     await api('/api/platform','POST',{control,value});
     toast(title+'已提交 · WMI 回读一致（不代表已独立验证散热行为）');
     loadOemBasic();
-    if(control==='system_mode')loadProfileStatus();
+    if(control==='system_mode'){logActivity(`切换性能模式：${{0:'狂暴',1:'均衡',2:'静音'}[value]||value}`);loadProfileStatus();}else{logActivity(`设置按键灯亮度：${value}`);}
   }catch(e){toast(e.message,true);}
 }
 function bind(){
-  $('#todayText').textContent=new Date().toLocaleDateString('zh-CN',{year:'numeric',month:'2-digit',day:'2-digit'});
+  if($('#todayText'))$('#todayText').textContent=new Date().toLocaleDateString('zh-CN',{year:'numeric',month:'2-digit',day:'2-digit'});
   $$('[data-quick-color]').forEach(el=>el.style.setProperty('--swatch','#'+el.dataset.quickColor));
   $$('[data-view]').forEach(el=>el.addEventListener('click',()=>selectTab(el.dataset.view)));
   $$('[data-go]').forEach(el=>el.addEventListener('click',()=>selectTab(el.dataset.go)));
-  $('#refreshButton').addEventListener('click',()=>{loadStatus();loadPresets();loadSystemTemplates();loadSystem();toast('已请求刷新');});
+  $('#refreshButton').addEventListener('click',()=>{loadStatus();loadPresets();loadSystemTemplates();loadSystem();loadProfileStatus();loadFans();toast('已请求刷新');});
   $('#loginForm').addEventListener('submit',async evt=>{
     evt.preventDefault();const value=$('#tokenInput').value.trim();
     if(value.length<32){$('#loginError').textContent='令牌长度不正确';return;}
     M.token=value;
-    try{const data=await api('/api/status');sessionStorage.setItem('metacube-token',value);hideLogin();M.undoAvailable=Boolean(data.undo_available);displayStatus(data.lighting);loadPresets();loadSystemTemplates();loadSystem();toast('成功连接至 MetaCube');}
+    try{const data=await api('/api/status');sessionStorage.setItem('metacube-token',value);hideLogin();M.undoAvailable=Boolean(data.undo_available);displayStatus(data.lighting);loadPresets();loadSystemTemplates();loadSystem();loadProfileStatus();loadFans();toast('成功连接至 MetaCube');}
     catch(e){$('#loginError').textContent=e.message;}
   });
   $$('.mode-tile').forEach(el=>el.addEventListener('click',()=>{if(!M.draft)return;M.draft.mode=el.dataset.mode;M.dirty=true;refreshDraft();}));
   $$('[data-direction]').forEach(el=>el.addEventListener('click',()=>{if(!M.draft)return;M.draft.direction=Number(el.dataset.direction);M.dirty=true;refreshDraft();}));
+  $('#dashBrightnessInput').addEventListener('input',event=>{
+    if(!M.draft)return;
+    M.draft.brightness=Math.min(255,Math.max(0,Math.round(Number(event.target.value))*26));
+    M.dirty=true;refreshDraft();
+  });
+  $('#dashTransitionInput').addEventListener('change',event=>{
+    if(!M.draft)return;M.draft.transition=event.target.checked?1:0;M.dirty=true;refreshDraft();
+  });
+  $('#dashboardApplyButton').addEventListener('click',applyLighting);
+  $$('[data-dashboard-presets]').forEach(button=>button.addEventListener('click',()=>{
+    M.presetView=button.dataset.dashboardPresets;renderDashboardPresets();
+  }));
   $('#brightnessInput').addEventListener('input',event=>{
     if(!M.draft)return;
     const level=Number(event.target.value);
@@ -580,8 +690,9 @@ async function initial(){
   bind();
   if(!M.token){showLogin();return;}
   await loadStatus();
-  if(M.live){loadPresets();loadSystemTemplates();loadSystem();}
+  if(M.live){loadPresets();loadSystemTemplates();loadSystem();loadProfileStatus();loadFans();}
 }
 initial();
 setInterval(()=>{if(M.token&&!$('#loginDialog').open){loadStatus();if(['dashboard','system'].includes(M.tab))loadSystem();}},7000);
-setInterval(loadFans,2000); // OEM performance page fan refresh; no WMI writes
+setInterval(loadFans,2000); // OEM performance/dashboard read-only fan refresh; no WMI writes
+setInterval(()=>{if(M.token&&!$('#loginDialog').open&&['dashboard','system'].includes(M.tab))loadProfileStatus();},30000);
