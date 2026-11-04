@@ -1,3 +1,9 @@
+# MetaCube RGB v2.4.3 — RGB workbench layout
+
+The RGB lighting page now uses a full-height two-row control workbench: lighting modes, OEM brightness/speed/direction/cycle/transition and a larger ring preview above; a wider 1–6 color/HSV editor and tabbed system/user preset center below. The preview always keeps the Apply button visible. Color editing and preset lists scroll only within their panels. Backend APIs, speed=2 safeguard, permission gates and DKMS 2.3.0 remain unchanged. `bash install.sh --web-only` on PVE.
+
+---
+
 # MetaCube RGB v2.4.2 — Restore full-height dashboard proportions
 
 A layout correction to v2.4.1: the previous approach reduced component sizes while leaving unused space below the console. The new dashboard distributes its available viewport height to the RGB preview, preset library, performance and dual-fan panels, and host/event/resource column. It restores readable heading/button sizes and round preset thumbnails. Desktop dashboard fills from the status ribbon to the bottom edge without document scrolling at 1280×720 through 1920×1080. Other pages and mobile behavior remain unchanged. No firmware/driver/API changes; `bash install.sh --web-only` on PVE.
@@ -73,11 +79,11 @@ Independent Linux/PVE WMI RGB control center for **METAPHYUNI MetaCube M11 Serie
 
 ## Screenshots / 界面截图
 
-> The overview screenshot is generated from **v2.4.2** with simulated device status and demo host metrics; other feature screenshots illustrate the still-available detailed editor and settings. No physical RGB hardware was controlled to create these images.
+> The overview screenshot is generated from **v2.4.0** with simulated device status and demo host metrics; other feature screenshots illustrate the still-available detailed editor and settings. No physical RGB hardware was controlled to create these images.
 
 ### Dashboard · Device overview
 
-![MetaCube v2.4.2 dense orange-and-cyan command console with OEM RGB ring, presets and fans](docs/screenshots/overview.webp)
+![MetaCube v2.4.0 dense orange-and-cyan command console with OEM RGB ring, presets and fans](docs/screenshots/overview.webp)
 
 [Mobile layout preview](docs/screenshots/overview-mobile.webp)
 

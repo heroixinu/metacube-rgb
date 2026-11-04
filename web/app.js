@@ -192,6 +192,11 @@ function refreshDraft(){
   $('#transitionInput').checked=Boolean(M.draft.transition);
   $$('[data-direction]').forEach(el=>el.classList.toggle('active',Number(el.dataset.direction)===M.draft.direction));
   $('#previewModeText').textContent=(labels[M.draft.mode]||'未知')+'模式';
+  // Current DRAFT, never a live firmware claim.
+  $('#previewSummaryMode').textContent=labels[M.draft.mode]||'未知';
+  $('#previewSummaryCount').textContent=M.draft.colors.length+' 色';
+  $('#previewSummaryBrightness').textContent=Math.round(M.draft.brightness/255*100)+'%';
+  $('#previewSummarySpeed').textContent=String(M.draft.speed)+' / 10';
   $('#previewColorText').textContent='#'+(M.draft.colors?.[0]||'000000') + (M.draft.colors.length>1?` +${M.draft.colors.length-1}`:'');
   const conflict=M.dirty && M.live?.raw!==M.baselineRaw;
   const locked=advancedRgbLocked();
@@ -673,6 +678,18 @@ function bind(){
   $('#inspectPacketButton').addEventListener('click',inspectPacket);
   $('#closePacketButton').addEventListener('click',()=>{$('#packetCard').hidden=true;});
   $('#nextCycleButton').addEventListener('click',()=>{if(!M.draft)return;M.draft.cycle=(M.draft.cycle+1)%12;M.dirty=true;refreshDraft();});
+  // Dedicated lighting page preset hub; toggles only presentation, never device state.
+  $$('[data-lighting-presets]').forEach(button=>button.addEventListener('click',()=>{
+    const tab=button.dataset.lightingPresets;
+    $$('[data-lighting-presets]').forEach(el=>{
+      const selected=el.dataset.lightingPresets===tab;
+      el.classList.toggle('active',selected);
+      el.setAttribute('aria-selected',String(selected));
+      el.tabIndex=selected?0:-1;
+    });
+    $('#lighting-preset-system').hidden=tab!=='system';
+    $('#lighting-preset-user').hidden=tab!=='user';
+  }));
   $('#exportPresetsButton').addEventListener('click',exportPresets);
   $('#importPresetsButton').addEventListener('click',()=>$('#importPresetsFile').click());
   $('#importPresetsFile').addEventListener('change',async e=>{await importPresets(e.target.files?.[0]);e.target.value='';});

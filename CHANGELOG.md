@@ -1,3 +1,11 @@
+## v2.4.3 — 2026-11-04 · RGB full-height workbench layout
+
+- Reorganize the RGB tab into a two-row layout: mode / OEM parameters / larger ring preview on top, wide color editor / tabbed presets below. Unlike earlier attempts to force one-screen content, allocate the viewport to the modules and scroll only expanding color/HSV rows and preset lists internally.
+- Consolidate the speed safety notice, draft state, discard/undo and WMI packet inspector into one compact toolbar. The Apply button remains visible inside the preview panel, with a four-field draft summary (mode, color count, brightness, firmware speed).
+- Merge immutable system templates and five user presets into an accessible tabbed library, preserving every existing ID, preview/import/export/save/delete/apply action, backend route and firmware-write guard. Switching tabs does not write firmware.
+- Add Chromium mock-only interaction and layout tests at six desktop resolutions, including checks for a visible Apply button, color editor, WMI inspector, active preset pane, and zero WMI writes until explicit Apply.
+- No hardware protocol / EC control / DKMS modifications. Install using `bash install.sh --web-only`; WMI driver remains 2.3.0.
+
 ## v2.4.2 — 2026-11-04
 
 - Fix v2.4.1 dashboard over-compression: first viewport now fully utilized rather than stopping at ~80% height and leaving large empty space below.

@@ -592,3 +592,153 @@ html{height:100%}
   #view-dashboard .console-profile-row button > span {font-size:17px}
   #view-dashboard .console-profile-row button small {font-size:9px}
 }
+/* MetaCube v2.4.3: RGB workbench — top controls, large palette, one preset hub.
+   Only the lighting view; never changes sysfs or WMI requests. */
+@media (min-width:1101px) {
+  .page-container:has(#view-lighting.active) {
+    height:calc(100dvh - 43px);
+    min-height:0;
+    overflow:hidden;
+    padding:11px 13px 12px;
+  }
+  #view-lighting.active {
+    height:100%;min-height:0;display:flex;flex-direction:column;gap:10px;
+  }
+}
+#view-lighting .lighting-workbench-toolbar {
+  min-height:52px;display:flex;align-items:center;justify-content:space-between;
+  gap:16px;padding:8px 13px;border:1px solid #2c3948;border-radius:11px;
+  background:linear-gradient(110deg,#182330,#101923);
+}
+#view-lighting .lighting-toolbar-info {display:flex;flex:1;align-items:center;gap:12px;min-width:0}
+#view-lighting .lighting-toolbar-title {font-size:14px;letter-spacing:.02em;white-space:nowrap;color:#e8f1f9}
+#view-lighting .workbench-protection {font-size:11px;line-height:1.25;margin:0;padding:0;background:transparent;border:0;color:#e1b47b;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#view-lighting .workbench-protection[hidden]{display:none}
+#view-lighting .lighting-draft-status {font-size:10px;border:1px solid #35485a;border-radius:20px;color:#88e1bf;background:#152c2b;padding:5px 8px;white-space:nowrap;margin-left:auto}
+#view-lighting .lighting-draft-status.conflict{color:#ffb582;border-color:#c88356}
+#view-lighting .workbench-actions {padding:0;margin:0;flex:0 0 auto;border:0;background:transparent}
+#view-lighting .workbench-actions .rgb-action-buttons {display:flex;flex-wrap:nowrap;gap:6px}
+#view-lighting .workbench-actions .outline-button {white-space:nowrap;padding:8px 10px;font-size:11px}
+#view-lighting .light-workbench-grid {min-width:0;min-height:0;flex:1 1 auto;display:grid;
+   grid-template-columns:minmax(0,1.02fr) minmax(0,1.26fr) minmax(0,1.57fr);
+   grid-template-rows:minmax(0,.96fr) minmax(0,1.04fr);gap:10px;align-items:stretch}
+#view-lighting .light-workbench-grid > .card {min-width:0;min-height:0;height:100%;overflow:hidden;border:1px solid #304354;border-radius:11px;background:linear-gradient(146deg,#14202a,#101923 77%);padding:13px 15px}
+#view-lighting .light-workbench-grid > .workbench-mode{grid-column:1;grid-row:1;display:flex;flex-direction:column}
+#view-lighting .light-workbench-grid > .workbench-parameters{grid-column:2;grid-row:1;display:flex;flex-direction:column}
+#view-lighting .light-workbench-grid > .workbench-preview{grid-column:3;grid-row:1;display:flex;flex-direction:column}
+#view-lighting .light-workbench-grid > .workbench-palette{grid-column:1/3;grid-row:2;display:flex;flex-direction:column}
+#view-lighting .light-workbench-grid > .preset-hub-card{grid-column:3;grid-row:2;display:flex;flex-direction:column}
+#view-lighting .light-workbench-grid .card-heading {margin:0 0 10px;align-items:center;flex-shrink:0}
+#view-lighting .light-workbench-grid .card-heading h3 {font-size:15px;margin:3px 0 0;line-height:1.3}
+#view-lighting .light-workbench-grid .card-heading .tiny-label {font-size:9px;color:#839caf;letter-spacing:1.2px}
+#view-lighting .mode-grid{display:grid;flex:1;min-height:0;grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:repeat(2,minmax(0,1fr));gap:9px}
+#view-lighting .mode-grid .mode-tile {min-height:0;padding:10px;gap:4px;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:10px}
+#view-lighting .mode-grid .mode-glyph {font-size:clamp(21px,2vw,30px)}
+#view-lighting .mode-grid .mode-tile b {font-size:13px}
+#view-lighting .mode-grid .mode-tile small{font-size:9px}
+#view-lighting .workbench-parameters .control-group {padding:2px 0 6px;margin:0 0 5px}
+#view-lighting .workbench-parameters .control-line {margin-bottom:6px}
+#view-lighting .workbench-parameters .control-line label {font-size:11px;min-width:0}
+#view-lighting .workbench-parameters .control-line label small {font-size:9px;display:inline;color:#788da0}
+#view-lighting .workbench-parameters .control-options {padding:6px 0;margin:0}
+#view-lighting .workbench-parameters .control-options strong {font-size:11px}
+#view-lighting .workbench-parameters .control-options small {font-size:9px}
+#view-lighting .workbench-parameters input[type=range]{width:100%}
+#view-lighting .workbench-parameters .control-options.last {margin-top:auto}
+#view-lighting .workbench-preview .compact-preview-layout {flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1.18fr) minmax(0,1fr);gap:15px;align-items:stretch}
+#view-lighting .workbench-preview .compact-preview-layout>.preview-stage {width:100%;height:100%;min-height:0;display:grid;place-items:center;border:1px solid #2b3b4b;border-radius:10px}
+#view-lighting .workbench-preview .preview-device{width:clamp(145px,14vw,216px);height:clamp(155px,15vw,228px)}
+#view-lighting .workbench-preview .preview-commands {min-height:0;gap:10px;display:flex;justify-content:space-evenly}
+#view-lighting .workbench-preview .preview-commands .preview-bottom{display:grid;gap:5px;align-content:start}
+#view-lighting .workbench-preview .preview-bottom strong{font-size:13px}
+#view-lighting .workbench-preview .simulation-note{font-size:10px;line-height:1.5;color:#8299a9}
+#view-lighting .workbench-preview .preview-commands .primary-button{min-height:39px;justify-content:center;padding:10px}
+#view-lighting .workbench-preview .preview-commands .unsaved{font-size:10px;line-height:1.4;min-height:14px}
+#view-lighting .preview-parameter-summary{display:grid;grid-template-columns:1fr 1fr;gap:5px}
+#view-lighting .preview-parameter-cell {border:1px solid #2a3949;border-radius:7px;background:#192632;padding:8px 9px;display:grid;gap:5px}
+#view-lighting .preview-parameter-cell small {font-size:9px;color:#8a9eaf}
+#view-lighting .preview-parameter-cell strong {font-size:12px;color:#f0f5fa}
+#view-lighting .workbench-palette .color-editor{flex:1;min-height:0;max-height:none;overflow:auto;display:block;padding:2px 3px 2px 0;scrollbar-width:thin}
+#view-lighting .workbench-palette .color-row{min-height:43px;padding:5px 10px;gap:10px;margin:0 0 5px;background:#1b2835;border-color:#344354}
+#view-lighting .workbench-palette .color-row .color-label{min-width:62px;white-space:nowrap}
+#view-lighting .workbench-palette .color-row input[type=text]{min-width:110px;max-width:150px}
+#view-lighting .workbench-palette .hsv-panel{margin:0 0 9px}
+#view-lighting .workbench-palette .color-presets{flex-shrink:0;border-top:1px solid #2c3a46;margin-top:7px;padding-top:9px}
+#view-lighting .preset-hub-heading{margin-bottom:11px}
+#view-lighting .preset-hub-heading .hint{font-size:10px}
+#view-lighting .preset-hub-tabs{display:grid;grid-template-columns:1fr 1fr;flex-shrink:0;gap:6px;margin:0 0 10px;padding:3px;border:1px solid #2c3e50;background:#0c151e;border-radius:9px}
+#view-lighting .preset-hub-tab{border:1px solid transparent;background:transparent;color:#9aabba;border-radius:7px;font-size:12px;font-weight:700;padding:9px 8px}
+#view-lighting .preset-hub-tab.active{background:#372a27;color:#ffd0a9;border-color:#c27e53;box-shadow:0 0 14px #ff965117}
+#view-lighting .preset-hub-pane {flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden;padding:0!important;border:0!important;background:transparent!important;border-radius:0!important}
+#view-lighting .preset-hub-pane[hidden]{display:none!important}
+#view-lighting .preset-hub-pane>.card-heading{display:none}
+#view-lighting .preset-hub-pane .preset-list {flex:1;min-height:0;max-height:none;overflow:auto;scrollbar-width:thin;padding-right:2px}
+#view-lighting .preset-hub-pane .preset-item {padding:9px 10px;margin:0 0 8px;border:1px solid #304354;border-radius:9px;grid-template-columns:minmax(0,1fr);gap:7px}
+#view-lighting .preset-hub-pane .preset-summary {gap:12px;min-width:0}
+#view-lighting .preset-hub-pane .preset-buttons{display:flex;gap:7px;flex-wrap:nowrap}
+#view-lighting .preset-hub-pane .preset-buttons button{min-width:0;flex:1;padding:7px 5px;white-space:nowrap}
+#view-lighting .preset-hub-pane .system-template-ring {width:42px;height:42px;min-width:42px}
+#view-lighting .preset-hub-pane .preset-toolbar{flex-shrink:0;display:flex;gap:8px;margin:0 0 8px}
+#view-lighting .preset-hub-pane .preset-hub-description {display:none}
+#view-lighting .light-workbench-grid>.packet-card:not([hidden]) {position:fixed;right:18px;bottom:18px;width:min(610px,calc(100vw - 36px));height:auto;max-height:min(380px,calc(100dvh - 68px));overflow:auto;z-index:30;box-shadow:0 18px 80px #000b;border:1px solid #e6a66d}
+@media (min-width:1101px) and (max-height:820px){
+  #view-lighting .light-workbench-grid{grid-template-rows:minmax(0,.96fr) minmax(0,1.04fr)}
+  #view-lighting .light-workbench-grid > .card{padding:10px 12px}
+  #view-lighting .workbench-preview .preview-device{width:clamp(130px,11vw,174px);height:clamp(140px,12vw,187px)}
+  #view-lighting .preview-parameter-cell{padding:5px 7px;gap:3px}
+  #view-lighting .workbench-preview .simulation-note{display:none}
+  #view-lighting .workbench-parameters .control-line label small{display:none}
+  #view-lighting .workbench-parameters .control-group{padding:1px 0 3px;margin-bottom:2px}
+  #view-lighting .workbench-parameters .control-options{padding:4px 0}
+}
+@media (max-width:1100px){
+  #view-lighting .light-workbench-grid{grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-rows:auto;align-items:stretch;gap:10px}
+  #view-lighting .light-workbench-grid>.card{min-height:250px;height:auto}
+  #view-lighting .light-workbench-grid>.workbench-mode{grid-column:1;grid-row:1}
+  #view-lighting .light-workbench-grid>.workbench-parameters{grid-column:2;grid-row:1}
+  #view-lighting .light-workbench-grid>.workbench-preview{grid-column:1/-1;grid-row:2}
+  #view-lighting .light-workbench-grid>.workbench-palette{grid-column:1;grid-row:3;min-height:330px}
+  #view-lighting .light-workbench-grid>.preset-hub-card{grid-column:2;grid-row:3;min-height:330px}
+  #view-lighting .workbench-preview .compact-preview-layout>.preview-stage{min-height:220px}
+  #view-lighting .lighting-workbench-toolbar{flex-wrap:wrap}
+  #view-lighting .workbench-actions{margin-left:auto}
+}
+@media (max-width:680px){
+  #view-lighting .light-workbench-grid{display:flex;flex-direction:column}
+  #view-lighting .light-workbench-grid>.card{min-height:260px;height:auto}
+  #view-lighting .light-workbench-grid>.workbench-preview{min-height:310px}
+  #view-lighting .light-workbench-grid>.workbench-palette,#view-lighting .light-workbench-grid>.preset-hub-card{height:420px;min-height:420px}
+  #view-lighting .lighting-workbench-toolbar{display:flex;align-items:flex-start;padding:10px}
+  #view-lighting .lighting-toolbar-info{flex-wrap:wrap;gap:6px}
+  #view-lighting .workbench-protection{white-space:normal;flex:1 1 100%}
+  #view-lighting .workbench-actions .rgb-action-buttons{flex-wrap:wrap}
+  #view-lighting .workbench-preview .compact-preview-layout{grid-template-columns:1fr 1fr}
+  #view-lighting .workbench-palette .color-row{gap:5px}
+  #view-lighting .workbench-palette .color-row input[type=text]{min-width:75px;max-width:100px}
+}
+/* Final viewport sizing: avoid the flex item's intrinsic min-content height
+   overriding the desired 100dvh workbench height. */
+@media (min-width:1101px) {
+  .page-container:has(#view-lighting.active) {
+    flex:none!important;
+    height:calc(100dvh - 43px)!important;
+    max-height:calc(100dvh - 43px)!important;
+    min-height:0!important;
+  }
+}
+/* The summary replaces the previous duplicated mode/color header, leaving
+   room for the Apply button in the preview at 720–900px heights. */
+#view-lighting .workbench-preview .preview-commands .preview-bottom {display:none}
+#view-lighting .workbench-preview .preview-commands {justify-content:center;gap:9px}
+#view-lighting .workbench-preview .preview-parameter-summary {gap:5px}
+#view-lighting .workbench-preview .preview-parameter-cell {padding:7px 9px;gap:3px}
+#view-lighting .workbench-preview .preview-commands .primary-button {flex-shrink:0;margin-top:auto}
+#view-lighting .workbench-preview .preview-commands .unsaved {flex-shrink:0}
+#view-lighting .workbench-palette .color-row {display:grid;grid-template-columns:40px 82px minmax(120px,1fr) 2px repeat(3,31px)}
+#view-lighting .workbench-palette .color-row input[type=text]{width:100%;max-width:none;min-width:0}
+@media (min-width:1101px) and (max-height:900px) {
+ #view-lighting .workbench-preview .preview-commands .simulation-note{display:none}
+ #view-lighting .workbench-preview .preview-commands {gap:6px}
+ #view-lighting .workbench-preview .preview-parameter-cell {padding:5px 8px;gap:2px}
+ #view-lighting .workbench-preview .preview-commands .unsaved {font-size:9px}
+}
