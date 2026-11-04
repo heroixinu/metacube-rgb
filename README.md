@@ -1,3 +1,9 @@
+# MetaCube RGB v2.4.2 — Restore full-height dashboard proportions
+
+A layout correction to v2.4.1: the previous approach reduced component sizes while leaving unused space below the console. The new dashboard distributes its available viewport height to the RGB preview, preset library, performance and dual-fan panels, and host/event/resource column. It restores readable heading/button sizes and round preset thumbnails. Desktop dashboard fills from the status ribbon to the bottom edge without document scrolling at 1280×720 through 1920×1080. Other pages and mobile behavior remain unchanged. No firmware/driver/API changes; `bash install.sh --web-only` on PVE.
+
+---
+
 # MetaCube RGB Web v2.4.0 — compact hardware control console
 
 Web/CLI-only visual redesign; kernel WMI DKMS remains **2.3.0**. Based on the selected orange/cyan dense dashboard concept, reuses existing OEM-protocol backend APIs and preserves current access-control gates.
@@ -67,11 +73,11 @@ Independent Linux/PVE WMI RGB control center for **METAPHYUNI MetaCube M11 Serie
 
 ## Screenshots / 界面截图
 
-> The overview screenshot is generated from **v2.4.0** with simulated device status and demo host metrics; other feature screenshots illustrate the still-available detailed editor and settings. No physical RGB hardware was controlled to create these images.
+> The overview screenshot is generated from **v2.4.2** with simulated device status and demo host metrics; other feature screenshots illustrate the still-available detailed editor and settings. No physical RGB hardware was controlled to create these images.
 
 ### Dashboard · Device overview
 
-![MetaCube v2.4.0 dense orange-and-cyan command console with OEM RGB ring, presets and fans](docs/screenshots/overview.webp)
+![MetaCube v2.4.2 dense orange-and-cyan command console with OEM RGB ring, presets and fans](docs/screenshots/overview.webp)
 
 [Mobile layout preview](docs/screenshots/overview-mobile.webp)
 
@@ -137,3 +143,7 @@ Project scope: [OEM capability matrix](docs/OEM_FEATURE_MATRIX.md) · [RGB valid
 ## License
 
 Kernel driver: GPL-2.0-only; Python/Web components: MIT (see LICENSE). No proprietary OEM Windows binaries, firmware, images or third-party fonts are redistributed.
+
+### v2.4.1 one-screen layout
+
+Removed redundant page-level hero headings, condensed panels and status tiles, and rearranged RGB Studio and Performance/Fan management into dense modules. Mock Chromium checks confirm the main document fits the viewport (no vertical scroll) at desktop sizes from 1280×720 to 1920×1080; long HSV/preset lists scroll inside their own modules. Narrow/mobile layouts remain scrollable for legibility. Web-only upgrade; DKMS 2.3.0 is unchanged.

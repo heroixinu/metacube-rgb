@@ -358,3 +358,237 @@ html{height:100%}
 @media(min-width:1251px) and (max-height:740px){.page-container{padding-bottom:2px}}
 /* The optional raw WMI packet inspector floats above the control panel; never grows the page. */
 #view-lighting .light-sidebar>.packet-card:not([hidden]){position:fixed;right:18px;bottom:18px;width:min(610px,calc(100vw - 36px));max-height:min(360px,calc(100dvh - 68px));overflow:auto;z-index:30;box-shadow:0 18px 80px #000b;border:1px solid #e6a66d}
+/* v2.4.2 — viewport-filling restoration of the original console proportions.
+   The screen is allocated by layout tracks, never by globally shrinking widgets.
+   Only dashboard is affected; other views retain their current interaction model. */
+@media (min-width:1251px) {
+  .page-container:has(#view-dashboard.active) {
+    height:calc(100dvh - 43px);
+    min-height:0;
+    overflow:hidden;
+    padding:11px 13px 12px;
+  }
+  #view-dashboard.active {
+    height:100%; min-height:0; display:flex; flex-direction:column;
+  }
+  #view-dashboard .console-kpi-grid {
+    flex:0 0 clamp(59px,8vh,72px);
+    margin:0 0 10px;
+    gap:9px;
+  }
+  #view-dashboard .console-kpi {
+    height:100%; min-height:0; padding:9px 12px;
+    gap:10px; border-radius:10px;
+  }
+  #view-dashboard .kpi-icon {
+    width:37px; height:37px; font-size:20px;
+  }
+  #view-dashboard .console-kpi small {font-size:10.5px;margin-bottom:4px}
+  #view-dashboard .console-kpi strong {font-size:15px}
+  #view-dashboard .console-primary-grid {
+    flex:1 1 0; min-height:0; align-items:stretch; gap:10px;
+  }
+  #view-dashboard .console-primary-column,
+  #view-dashboard .console-aside-column {
+    min-height:0; height:100%; display:grid; gap:10px;
+  }
+  #view-dashboard .console-primary-column {
+    grid-template-rows:minmax(0,1.88fr) minmax(0,.69fr) minmax(0,.9fr);
+  }
+  #view-dashboard .console-aside-column {
+    grid-template-rows:minmax(0,1.30fr) minmax(0,.77fr) minmax(0,.97fr);
+    grid-template-columns:minmax(0,1fr);
+  }
+  #view-dashboard .console-aside-column > .console-panel {
+    grid-column:1;grid-row:auto;
+  }
+  #view-dashboard .console-panel {
+    min-height:0; height:100%; display:flex; flex-direction:column;
+    border-radius:11px;
+  }
+  #view-dashboard .console-panel-head {
+    flex:0 0 45px; min-height:0; padding:8px 12px;
+  }
+  #view-dashboard .panel-head-icon {width:29px;height:29px;font-size:18px}
+  #view-dashboard .panel-heading h2 {font-size:13px}
+  #view-dashboard .panel-heading small {font-size:10px;margin-top:3px}
+  #view-dashboard .console-rgb-body {
+    flex:1 1 0; height:auto; min-height:0; padding:10px;
+    grid-template-columns:minmax(0,35%) minmax(0,38%) minmax(0,27%);
+  }
+  #view-dashboard .console-ring-column,
+  #view-dashboard .console-control-column,
+  #view-dashboard .console-palette-column {min-height:0}
+  #view-dashboard .console-ring-column {
+    display:flex;flex-direction:column;padding-right:10px;
+  }
+  #view-dashboard .dashboard-ring-stage {
+    flex:1 1 0;height:auto;min-height:0;
+  }
+  #view-dashboard .dashboard-device-case {
+    width:min(78%,260px);height:auto;
+    aspect-ratio:1.08;
+    max-height:80%;
+  }
+  #view-dashboard .dashboard-device-case .preview-ring-assembly {max-width:212px}
+  #view-dashboard .ring-quick-status {flex:0 0 20px;font-size:11px;margin-top:6px}
+  #view-dashboard .console-control-column {
+    display:flex;flex-direction:column;padding:3px 11px 0;
+  }
+  #view-dashboard .compact-control-label {font-size:13px;margin:2px 0 9px}
+  #view-dashboard .compact-control-label small {font-size:10px}
+  #view-dashboard .dashboard-mode-buttons {
+    flex:0 0 auto; gap:5px;margin-bottom:6px;
+  }
+  #view-dashboard .dashboard-mode-buttons .mode-tile {padding:8px 3px;gap:4px}
+  #view-dashboard .dashboard-mode-buttons .mode-glyph {font-size:20px}
+  #view-dashboard .dashboard-mode-buttons .mode-tile b {font-size:11px}
+  #view-dashboard .dashboard-control-list {
+    flex:1 1 0;min-height:0;display:flex;flex-direction:column;
+    justify-content:space-between;
+  }
+  #view-dashboard .dashboard-control-row {
+    flex:1 1 0;min-height:26px;padding:3px 0;
+    font-size:11px;
+  }
+  #view-dashboard .dashboard-direction button {font-size:10px;padding:6px 8px}
+  #view-dashboard .console-rgb-actions {
+    flex:0 0 auto; margin-top:8px;
+  }
+  #view-dashboard .console-rgb-actions .primary-button,
+  #view-dashboard .console-rgb-actions .outline-button {font-size:11px;padding:9px 7px}
+  #view-dashboard .console-palette-column {
+    padding-left:10px;display:flex;flex-direction:column;
+  }
+  #view-dashboard .dashboard-palette-list {
+    flex:1 1 0;min-height:0;max-height:none;
+    display:flex;flex-direction:column;justify-content:space-between;
+    gap:5px;overflow-y:auto;
+  }
+  #view-dashboard .dashboard-color-item {
+    min-height:30px;padding:5px 7px;gap:7px;
+  }
+  #view-dashboard .dashboard-color-swatch {width:19px;height:19px}
+  #view-dashboard .dashboard-color-item small {font-size:10px}
+  #view-dashboard .dashboard-color-item b {font-size:10.5px}
+  #view-dashboard .console-palette-column > .outline-button {flex:0 0 auto;margin-top:8px;padding:8px}
+  #view-dashboard .console-palette-column > p {font-size:9.5px;line-height:1.4;margin:7px 0 0}
+  #view-dashboard .dashboard-preset-grid {
+    flex:1 1 0;min-height:0;padding:10px;gap:9px;
+    align-items:stretch;grid-auto-rows:minmax(0,1fr);
+  }
+  #view-dashboard .dashboard-preset-tile {
+    min-height:0;display:flex;flex-direction:column;align-items:center;
+    justify-content:center;gap:4px;padding:7px 4px;
+  }
+  #view-dashboard .dashboard-preset-tile .system-template-ring {
+    width:clamp(36px,5.2vh,51px);height:clamp(36px,5.2vh,51px);
+    min-width:clamp(36px,5.2vh,51px);
+  }
+  #view-dashboard .dashboard-preset-tile strong {font-size:11px}
+  #view-dashboard .dashboard-preset-tile small {font-size:9px}
+  #view-dashboard .console-bottom-grid {
+    min-height:0;height:100%;gap:10px;grid-template-columns:1fr 1fr;
+  }
+  #view-dashboard .console-profile-row {
+    flex:1 1 0;min-height:0;display:flex;gap:7px;padding:10px;
+  }
+  #view-dashboard .console-profile-row button {
+    flex:1 1 0;padding:9px 5px;gap:4px;
+  }
+  #view-dashboard .console-profile-row button > span {font-size:21px}
+  #view-dashboard .console-profile-row button b {font-size:12px}
+  #view-dashboard .console-profile-row button small {font-size:10px}
+  #view-dashboard .console-panel-foot {flex:0 0 auto;font-size:10px;padding:0 10px 9px}
+  #view-dashboard .dashboard-fan-grid {
+    flex:1 1 0;min-height:0;padding:9px;gap:9px;
+  }
+  #view-dashboard .console-fan-box {
+    min-height:0;display:flex;flex-direction:column;justify-content:space-between;padding:9px;
+  }
+  #view-dashboard .console-fan-box > span {font-size:11px}
+  #view-dashboard .console-fan-box strong {font-size:23px;margin:3px 0}
+  #view-dashboard .console-fan-box svg {flex:1 1 0;min-height:14px;height:auto;max-height:52px;margin-top:6px}
+  #view-dashboard .console-host-info {
+    flex:1 1 0;min-height:0;display:flex;flex-direction:column;
+    justify-content:space-around;padding:8px 12px;
+  }
+  #view-dashboard .dashboard-host-row {flex:1 1 0;min-height:23px}
+  #view-dashboard .dashboard-host-row span,
+  #view-dashboard .dashboard-host-row b {font-size:10.5px}
+  #view-dashboard .console-host-status {flex:0 0 auto;margin:5px 12px 10px;padding:8px}
+  #view-dashboard .console-events {
+    flex:1 1 0;min-height:0;overflow:auto;
+    align-content:start;padding:8px 12px;
+  }
+  #view-dashboard .console-events li {font-size:11px;padding:9px 3px}
+  #view-dashboard .dashboard-resource-grid {
+    flex:1 1 0;min-height:0;padding:10px;gap:8px;
+  }
+  #view-dashboard .dashboard-resource {
+    display:flex;flex-direction:column;justify-content:space-around;
+    align-items:center;gap:3px;padding:7px 4px;
+  }
+  #view-dashboard .resource-dial {
+    width:clamp(51px,7vh,73px);height:clamp(51px,7vh,73px);
+  }
+  #view-dashboard .resource-dial strong {font-size:16px}
+  #view-dashboard .dashboard-resource b {font-size:10.5px}
+  #view-dashboard .dashboard-resource small {font-size:9px}
+  #view-dashboard .dashboard-temp-row {flex:0 0 auto;padding:0 12px 10px}
+}
+@media (min-width:1251px) and (max-height:770px) {
+  #view-dashboard .console-kpi-grid {flex-basis:57px;margin-bottom:7px}
+  #view-dashboard .console-primary-grid,
+  #view-dashboard .console-primary-column,
+  #view-dashboard .console-aside-column,
+  #view-dashboard .console-bottom-grid {gap:7px}
+  #view-dashboard .console-panel-head {flex-basis:37px;padding:5px 9px}
+  #view-dashboard .panel-heading small {font-size:9px}
+  #view-dashboard .console-rgb-body {padding:7px}
+  #view-dashboard .dashboard-mode-buttons .mode-tile {padding:4px 2px}
+  #view-dashboard .compact-control-label {margin-bottom:5px}
+  #view-dashboard .dashboard-control-row {min-height:22px;padding:2px 0}
+  #view-dashboard .console-rgb-actions {margin-top:4px}
+  #view-dashboard .dashboard-palette-list {gap:3px}
+  #view-dashboard .dashboard-color-item {min-height:25px;padding:3px 5px}
+  #view-dashboard .dashboard-preset-grid {padding:6px;gap:6px}
+  #view-dashboard .console-profile-row,
+  #view-dashboard .dashboard-fan-grid {padding:6px}
+  #view-dashboard .resource-dial {width:46px;height:46px}
+}
+@media (max-width:1250px) {
+ /* Multi-row mobile/tablet dashboard keeps its natural scrolling and legible controls. */
+ #view-dashboard .console-kpi small {font-size:10px}
+ #view-dashboard .panel-heading h2 {font-size:13px}
+}
+/* Keep circular swatches circular when a shorter viewport compresses preset cards. */
+@media (min-width:1251px) {
+  #view-dashboard .console-primary-column {
+    grid-template-rows:minmax(0,1.80fr) minmax(0,.79fr) minmax(0,.88fr);
+  }
+  #view-dashboard .dashboard-preset-grid {padding:8px 10px}
+  #view-dashboard .dashboard-preset-tile {gap:3px;padding:4px}
+  #view-dashboard .dashboard-preset-tile .system-template-ring {
+    flex:0 0 auto;aspect-ratio:1;
+    width:clamp(32px,5.2vh,46px);
+    height:clamp(32px,5.2vh,46px);
+    min-width:clamp(32px,5.2vh,46px);
+    min-height:clamp(32px,5.2vh,46px);
+  }
+  #view-dashboard .console-events li.empty {
+    width:100%;height:100%;min-height:65px;
+    justify-content:center;align-items:center;
+    font-size:11px;text-align:center;color:#849bab;
+    border-bottom:0;
+  }
+}
+@media (min-width:1251px) and (max-height:770px) {
+  #view-dashboard .dashboard-preset-grid {padding:5px 7px}
+  #view-dashboard .dashboard-preset-tile .system-template-ring {
+    width:28px;height:28px;min-width:28px;min-height:28px;
+  }
+  #view-dashboard .console-profile-row button {padding:4px 4px}
+  #view-dashboard .console-profile-row button > span {font-size:17px}
+  #view-dashboard .console-profile-row button small {font-size:9px}
+}

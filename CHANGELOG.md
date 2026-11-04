@@ -1,3 +1,10 @@
+## v2.4.2 — 2026-11-04
+
+- Fix v2.4.1 dashboard over-compression: first viewport now fully utilized rather than stopping at ~80% height and leaving large empty space below.
+- Preserve the selected orange/cyan visual design and existing card grouping. Restore legible KPI, module header, mode, palette, and performance control sizing; dynamically allocate screen height across dashboard sections.
+- Preset thumbnail ring remains circular on shorter desktop viewports; session event empty state is centered instead of floating at the top of an empty box.
+- Add Chromium regression assertions for bottom-edge coverage, non-clipped main apply action, readable headings, and circular preset rings at desktop sizes. Firmware, DKMS, WMI protocol and API unchanged.
+
 ## 2.4.0 — compact orange/cyan MetaCube control console
 
 - Redesign overview as a high-information-density hardware command center with circular RGB lighting simulation, synchronized draft inputs, user/system presets, dual-fan RPM trends, OEM mode readout and real host resource / firmware info.
@@ -78,3 +85,11 @@
 ## 2.0.0
 
 - Initial native Web control center, multi-color 32-byte WMI ambient apply, gated OEM system diagnostics, hardware metrics and DKMS support.
+
+## v2.4.1 — One-screen compact control pages
+
+- Removed repeated oversized hero/heading copy from Dashboard, RGB Studio, Performance/Fans and OEM Diagnostics. The top bar now holds the live connection/sync status and a diagnostics shortcut.
+- Reduced UI padding, panel headers, metric tiles and RGB preview chrome; reorganized Performance/Fans into a compact two-column grid and split the advanced RGB Studio into concise color, effect, preview, and preset modules.
+- Targeted zero **document** vertical/horizontal scrolling at desktop viewports 1920×1080, 1672×941, 1440×900, 1366×768, and 1280×720; long color/preset lists retain their own bounded scrollbars to keep every action accessible. Mobile/narrow screens remain naturally scrollable for readability.
+- Made the optional raw WMI packet inspector a floating panel to avoid growing the page height.
+- UI and CLI-only update; DKMS driver remains 2.3.0. No new WMI write operations or fan-control changes.

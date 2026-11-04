@@ -20,7 +20,7 @@
 </aside>
 <main class="content">
   <header class="topbar"><div class="crumb"><span>METACUBE CONTROL</span><span class="crumb-slash">/</span><span id="pageBreadcrumb">设备总览</span></div>
-  <div class="top-actions"><span class="live-tag top-live-status"><i></i><span id="dashConnection">等待连接</span></span><span class="console-timestamp top-sync-time" id="dashUpdated">尚未同步</span><button class="outline-button small" data-go="diagnostics">硬件诊断 ↗</button><span class="version-chip" id="versionChip">v2.4.1</span><button class="outline-button small" id="refreshButton">↻ 刷新设备</button></div></header>
+  <div class="top-actions"><span class="live-tag top-live-status"><i></i><span id="dashConnection">等待连接</span></span><span class="console-timestamp top-sync-time" id="dashUpdated">尚未同步</span><button class="outline-button small" data-go="diagnostics">硬件诊断 ↗</button><span class="version-chip" id="versionChip">v2.4.2</span><button class="outline-button small" id="refreshButton">↻ 刷新设备</button></div></header>
   <div class="page-container">
   <section id="view-dashboard" class="view active console-view">
     <div class="console-kpi-grid" aria-label="设备实时摘要">
@@ -100,7 +100,7 @@
       </article>
     </div><div class="light-sidebar">
       <article class="card preview-card"><div class="card-heading"><div><span class="tiny-label">LIVE PREVIEW</span><h3>光效预览</h3></div><span class="preview-pill">SIMULATION</span></div>
-        <div class="preview-stage" id="previewStage" data-mode="breath">
+        <div class="compact-preview-layout"><div class="preview-stage" id="previewStage" data-mode="breath">
           <div class="preview-ellipse e1"></div><div class="preview-ellipse e2"></div>
           <div class="preview-device" aria-label="MetaCube 顶部 RGB 圆环，效果仅供模拟">
             <div class="preview-device-top">
@@ -116,7 +116,7 @@
             <span class="preview-device-mark">✦</span>
           </div>
         </div>
-        <div class="preview-bottom"><div><small>预览配色</small><strong id="previewColorText">#50DCFA</strong></div><span id="previewModeText">呼吸模式</span></div><p class="simulation-note">参考真实机身顶部圆环制作的模拟预览；真实灯珠位置、速度曲线与过渡由固件决定。</p><button class="primary-button full" id="applyLightingButton">应用到设备 ↗</button><p id="unsavedHint" class="unsaved">修改不会自动写入主板固件</p></article>
+        <div class="preview-commands"><div class="preview-bottom"><div><small>预览配色</small><strong id="previewColorText">#50DCFA</strong></div><span id="previewModeText">呼吸模式</span></div><p class="simulation-note">参考真实机身顶部圆环制作的模拟预览；真实灯珠位置、速度曲线与过渡由固件决定。</p><button class="primary-button full" id="applyLightingButton">应用到设备 ↗</button><p id="unsavedHint" class="unsaved">修改不会自动写入主板固件</p></div></div></article>
       <article class="card preset-card system-presets-card"><div class="card-heading"><div><span class="tiny-label">04 / SYSTEM TEMPLATES</span><h3>系统光效模板</h3></div><span class="hint">内置 · 只读</span></div><div id="systemTemplateList" class="preset-list"><span class="secondary-note">正在载入系统模板...</span></div><p class="secondary-note">内置 4 套配色，来源于你提供的原始 JSON。可预览、载入编辑器或直接应用；不会占用和覆盖用户预设槽位。</p></article>
       <article class="card preset-card"><div class="card-heading"><div><span class="tiny-label">05 / USER PRESETS</span><h3>用户自定义预设</h3></div><span class="hint">5 个槽位</span></div><div class="preset-toolbar"><button class="outline-button small" id="exportPresetsButton">导出 JSON</button><button class="outline-button small" id="importPresetsButton">导入 JSON</button><input type="file" id="importPresetsFile" accept="application/json,.json" hidden/></div><div id="presetList" class="preset-list"></div><p class="secondary-note">「保存草稿」不会操作硬件；「载入编辑器」只修改预览；「立即应用」才会直接写入主板。导入预设也不会写入硬件。</p></article>
       <article class="card packet-card" id="packetCard" hidden><div class="card-heading"><div><span class="tiny-label">WMI 32-BYTE PACKET</span><h3>原厂数据包预检</h3></div><button class="outline-button small" id="closePacketButton">关闭</button></div><p class="secondary-note">仅生成预计的 SET 数据，不会发送到 EC。头部 00FB000F；保留未知保留区。</p><pre id="packetText" class="packet-data">请先编辑灯光配置</pre></article>

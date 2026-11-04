@@ -34,6 +34,26 @@ def main():
                 assert state['scrolled']<=1,(width,height,view,state)
                 assert state['horizontal']<=1,(width,height,view,state)
                 assert state['visibleBottom']<=height+1,(width,height,view,state)
+                if view=='dashboard' and width>=1251:
+                    fill=page.evaluate('''() => {
+                      const box=s=>document.querySelector(s).getBoundingClientRect();
+                      const main=box('.console-primary-grid');
+                      const rgb=box('.console-rgb-panel');
+                      const apply=box('#dashboardApplyButton');
+                      const presets=box('.console-preset-panel');
+                      const tiles=[...document.querySelectorAll('.dashboard-preset-tile .system-template-ring')]
+                        .map(el=>el.getBoundingClientRect());
+                      const aside=box('.console-aside-column');
+                      return {bottom:main.bottom,asideBottom:aside.bottom,viewport:innerHeight,
+                        applyVisible:apply.bottom<=rgb.bottom+1,
+                        presetsVisible:presets.bottom<=innerHeight,
+                        ringsCircular:tiles.every(r=>r.width>=25 && r.height>=25 && Math.abs(r.width-r.height)<=1),
+                        headingFont:parseFloat(getComputedStyle(document.querySelector('.console-panel-head h2')).fontSize)};
+                    }''')
+                    assert fill['bottom'] >= height-20 and fill['asideBottom'] >= height-20,(width,height,'unfilled viewport',fill)
+                    assert fill['applyVisible'] and fill['presetsVisible'],(width,height,'clipped primary action',fill)
+                    assert fill['ringsCircular'],(width,height,'squashed preset ring',fill)
+                    assert fill['headingFont']>=12,(width,height,'undersized heading',fill)
         page.set_viewport_size({'width':1366,'height':768})
         page.locator('[data-view="lighting"]').click()
         page.locator('#inspectPacketButton').click()
