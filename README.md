@@ -1,3 +1,26 @@
+# MetaCube RGB v2.4.4 — OEM speed control and durable recovery
+
+**Current behavior (v2.4.4):** The Linux Web/CLI uses the original Windows OEM **0–10 integer speed range**. Only speed **2** has been confirmed on the actual M11 Series-HPT device. A previous speed experiment caused the LEDs to stop emitting light until a complete AC power cycle; this remains a possibility at other speed values.
+
+- Dragging speed **only edits a browser draft**. A real WMI change happens only after **Apply**; the first speed-changing Web apply needs a per-browser-session risk confirmation. Direct preset/template applies receive the same warning when they change speed.
+- Every real RGB write first creates an atomic, private **full 32-byte GET snapshot plus RGB field data**; the newest 10 are stored in `/var/lib/metacube-rgb/rgb-history.json` (mode 0600). If backup fails, the firmware write is blocked.
+- Use `metacube-rgb history` to view snapshots and `metacube-rgb restore 1` to reapply the newest saved settings. Restore uses validated RGB fields (not arbitrary EC packets) and backs up the state before restoration.
+- To re-enable the previous speed restriction, explicitly set `METACUBE_LOCK_SPEED_CUSTOMIZATION=1` for the local Web service or CLI. Old opt-in variables for unlocking speed are no longer needed.
+- **Safety limitations:** The backups cannot recover an EC that remains unresponsive until AC power is removed. Fan control remains read-only, and performance-mode writes still require explicit authorization.
+
+Upgrade on an existing PVE installation (DKMS stays 2.3.0):
+
+```bash
+cd /root/metacube-rgb
+git pull --ff-only
+bash install.sh --web-only
+metacube-rgb web restart
+```
+
+---
+
+## Previous versions (historical behavior; current policy above takes precedence)
+
 # MetaCube RGB v2.4.3 — RGB workbench layout
 
 The RGB lighting page now uses a full-height two-row control workbench: lighting modes, OEM brightness/speed/direction/cycle/transition and a larger ring preview above; a wider 1–6 color/HSV editor and tabbed system/user preset center below. The preview always keeps the Apply button visible. Color editing and preset lists scroll only within their panels. Backend APIs, speed=2 safeguard, permission gates and DKMS 2.3.0 remain unchanged. `bash install.sh --web-only` on PVE.

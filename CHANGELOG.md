@@ -1,3 +1,12 @@
+# Changelog
+
+## v2.4.4 — OEM 0–10 speed and RGB write-ahead history
+
+- Open original Windows speed settings 0–10 by default; speed 2 remains the only hardware-verified speed on M11-HPT.
+- Web first-use confirmation when changing speed; no WMI write on slider input. Direct preset and template apply also prompt when speed changes.
+- Store up to 10 private full-GET-plus-RGB pre-write snapshots; fail closed if backup fails. CLI commands: `metacube-rgb history` and `metacube-rgb restore [index]`.
+- Optional administrator re-lock via `METACUBE_LOCK_SPEED_CUSTOMIZATION=1`. No changes to DKMS driver 2.3.0, fan permissions, or performance-mode safety.
+
 ## v2.4.3 — 2026-11-04 · RGB full-height workbench layout
 
 - Reorganize the RGB tab into a two-row layout: mode / OEM parameters / larger ring preview on top, wide color editor / tabbed presets below. Unlike earlier attempts to force one-screen content, allocate the viewport to the modules and scroll only expanding color/HSV rows and preset lists internally.
