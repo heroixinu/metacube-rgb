@@ -20,13 +20,9 @@
 </aside>
 <main class="content">
   <header class="topbar"><div class="crumb"><span>METACUBE CONTROL</span><span class="crumb-slash">/</span><span id="pageBreadcrumb">设备总览</span></div>
-  <div class="top-actions"><span class="version-chip" id="versionChip">v2.4.0</span><button class="outline-button small" id="refreshButton">↻ 刷新设备</button></div></header>
+  <div class="top-actions"><span class="live-tag top-live-status"><i></i><span id="dashConnection">等待连接</span></span><span class="console-timestamp top-sync-time" id="dashUpdated">尚未同步</span><button class="outline-button small" data-go="diagnostics">硬件诊断 ↗</button><span class="version-chip" id="versionChip">v2.4.1</span><button class="outline-button small" id="refreshButton">↻ 刷新设备</button></div></header>
   <div class="page-container">
   <section id="view-dashboard" class="view active console-view">
-    <div class="console-heading">
-      <div><div class="console-eyebrow">M11 SERIES · HARDWARE CONTROL</div><h1>MetaCube <span>硬件控制中心</span></h1><p>RGB 光效、性能与硬件监控 · 所有设备操作均由本机固件执行</p></div>
-      <div class="console-heading-actions"><span class="live-tag"><i></i> <span id="dashConnection">等待连接</span></span><span class="console-timestamp" id="dashUpdated">尚未同步</span><button class="outline-button small" data-go="diagnostics">硬件诊断 ↗</button></div>
-    </div>
     <div class="console-kpi-grid" aria-label="设备实时摘要">
       <article class="console-kpi"><span class="kpi-icon green">⌁</span><div><small>设备连接</small><strong id="dashLinkState">连接中</strong></div></article>
       <article class="console-kpi"><span class="kpi-icon orange">✺</span><div><small>当前光效模式</small><strong id="heroMode">—</strong></div></article>
@@ -87,7 +83,6 @@
     </div>
   </section>
   <section id="view-lighting" class="view">
-    <div class="heading-block compact"><div class="eyebrow">LIGHTING STUDIO <span class="line"></span> OEM AMBIENT PROTOCOL</div><h1>光效 <em>工作室.</em></h1><p>机身 RGB 专用工作室：先编辑、再预览，只有点击「应用到设备」才会写入固件。</p></div>
     <div id="rgbSafetyNotice" class="rgb-safety-notice" role="status" hidden>固件保护：旋转 / 动效速度固定为 2，默认不允许自定义，以免再次出现灯光熄灭。旋转模式、多色、方向、循环和渐变均可使用，但部分光效尚未完成真实硬件验收，建议先预检再应用。</div>
     <div class="rgb-actions"><div><strong>RGB 编辑状态</strong><span id="draftStateLabel">当前配置已同步</span></div><div class="rgb-action-buttons"><button class="outline-button small" id="discardDraftButton">↺ 放弃未应用修改</button><button class="outline-button small" id="undoLightingButton" disabled>撤销上一次应用</button><button class="outline-button small" id="inspectPacketButton">查看 WMI 数据包</button></div></div>
     <div class="light-layout"><div class="light-main">
@@ -128,7 +123,6 @@
     </div></div>
   </section>
   <section id="view-system" class="view">
-    <div class="heading-block compact"><div class="eyebrow">SYSTEM CONTROL <span class="line"></span> PERFORMANCE</div><h1>系统 <em>设置.</em></h1><p>对应原厂控制中心的性能档位与按键灯亮度。与 RGB 写入权限独立管理。</p></div>
     <div class="system-grid">
       <article class="card wide fan-monitor-card">
         <div class="card-heading"><div><span class="tiny-label">OEM FAN TELEMETRY / READ ONLY</span>
@@ -156,7 +150,6 @@
     </div>
   </section>
   <section id="view-diagnostics" class="view">
-    <div class="heading-block compact"><div class="eyebrow">OEM DIAGNOSTICS <span class="line"></span> READ ONLY</div><h1>硬件 <em>诊断.</em></h1><p>原厂程序包含更多 WMI 功能编号。这里仅做按需只读探测，不提供 GPU 切换、风扇强制转速或 CPU 功耗写入。</p></div>
     <div class="card"><div class="diagnostic-header"><div><h3>原厂 WMI 能力检测</h3><p>查询可能暂不被 MetaCube 固件支持的功能，只在手动点击后执行。</p></div><button class="outline-button" id="probeOemButton">开始只读检测 ↗</button></div><div id="oemList" class="diag-list"><div class="empty-diag">未执行检测 · 不会自动调用这些固件方法</div></div></div>
     <div class="card safety-card"><h3>为什么部分功能不可写？</h3><p>从 Windows 程序中能辨认出 GPU 混合/独显模式、Fn Lock、触摸板锁、键盘 RGB、CPU 功耗等 WMI 功能编号，但这不代表这台 MetaCube 实际搭载对应硬件，或者在 PVE 上安全可写。Web 版保留这些功能的能力检测与状态展示，待逐项验证后才能扩展写入。</p></div>
   </section>
