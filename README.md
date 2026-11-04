@@ -1,3 +1,23 @@
+# MetaCube RGB Web v2.3.1 — background service CLI (kernel module stays v2.3.0)
+
+`metacube-rgb web` still starts the server in the foreground. On an installed PVE host, new systemd-backed commands control the existing service without unmanaged PID files or extra daemon processes:
+
+```bash
+metacube-rgb web start    # run in background, survive SSH logout; not boot-enabled automatically
+metacube-rgb web status   # report active status, PID, boot enablement
+metacube-rgb web restart # restart the managed service
+metacube-rgb web stop    # stop the managed background service
+metacube-rgb web          # previous foreground behavior remains available
+```
+
+`start` and `restart` display the existing Web Bearer token **only on an interactive terminal**, not in systemd logs or redirected output. For background service bind address/port, configure `/etc/default/metacube-rgb-web` (`METACUBE_WEB_HOST`, `METACUBE_WEB_PORT`) rather than passing `--host` or `--port` to `web start`. To start automatically **after reboot** as a separate opt-in: `systemctl enable metacube-rgb-web.service`; to cancel boot startup: `systemctl disable metacube-rgb-web.service`. All commands manage the already installed `metacube-rgb-web.service` and make **no RGB firmware writes**.
+
+**Upgrade existing PVE:** `cd /root/metacube-rgb && git pull --ff-only && bash install.sh --web-only`. Stop any manually launched `metacube-rgb web` (Ctrl+C) before `metacube-rgb web start` to avoid port 8765 conflicts. Web/CLI v2.3.1 does not modify or rebuild DKMS v2.3.0.
+
+Four-color `#0033AA / #0088FF / #00E5D4 / #8844FF` physical ring spin at `speed=2`, direction `0`, was confirmed by the owner on their MetaCube M11 after v2.3.0 was installed. Other speed values remain guarded due to the earlier LED output failure.
+
+---
+
 # MetaCube RGB v2.3.0 — OEM RGB brightness, profiles & fan telemetry
 
 This build fixes two OEM parity gaps found in the user's Windows 2024 `玄机中枢.dll` IL: brightness uses a WPF 0..10 slider and encodes `min(level*26,255)`, while Turbo checks OS AC-online state via `GetSystemPowerStatus(LineStatus==1)`, not adapter connector type (`WMI 0x13 == 2`). Quiet/Balance/Turbo mode IDs remain 2/1/0. The Linux module now checks AC-online using `power_supply_is_system_supplied()` and only when explicit platform-write opt-in is enabled. The Web offers native brightness steps, active performance state, AC diagnostics, and non-invasive one-minute fan RPM trends. **No fan SET or PWM override exists in this release**: the original performance page provides only main/small RPM readouts, every 2s. See [OEM evidence and limits](docs/OEM_PERFORMANCE_FAN_PARITY.md).

@@ -1,3 +1,32 @@
+# v2.3.1：Web 后台服务管理（DKMS 内核模块仍为 2.3.0）
+
+原来的 `metacube-rgb web` 继续前台运行；新增以下命令，无须 `nohup`、`&` 或 PID 文件：
+
+```bash
+metacube-rgb web start    # 在 systemd 后台启动，退出 SSH 仍继续运行
+metacube-rgb web status   # 查看运行状态、PID、是否开机自启
+metacube-rgb web restart # 重启后台服务
+metacube-rgb web stop    # 停止后台服务
+metacube-rgb web          # 保留原有前台模式
+```
+
+`start`/`restart` 在交互式终端显示已有 Bearer Token；后台 systemd 日志和非交互式输出均不泄露 Token。后台模式的监听地址和端口使用 `/etc/default/metacube-rgb-web` 配置，不能向 `web start` 传入只适用于前台的 `--host / --port`。`start` 不会自动设置开机自启；如果需要随 PVE 开机启动，请单独执行 `systemctl enable metacube-rgb-web.service`，取消则执行 `systemctl disable metacube-rgb-web.service`。
+
+**更新命令（仅 Web，不重建驱动）：**
+
+```bash
+cd /root/metacube-rgb
+git pull --ff-only
+bash install.sh --web-only
+metacube-rgb web start
+```
+
+若旧 `metacube-rgb web` 正在终端前台运行，先按 `Ctrl+C` 退出，否则端口 `8765` 可能冲突。若 systemd 后台已运行，升级安装器会按原有状态重启服务。
+
+此外，用户已在 M11 实机确认 **四颜色旋转、速度 2、方向 0** 正常发光；其他速度仍默认禁止自定义，避免再次触发 LED 停止输出的风险。
+
+---
+
 # MetaCube RGB v2.3.0 — 原厂 RGB / 风扇 / 性能模式对齐
 
 > 本次升级涉及 DKMS 驱动 2.3.0。**不默认解锁风扇调速或性能模式写入**；默认继续只读监控。你之前的 RGB 速度故障后，我们保留速度 2 的默认安全锁。

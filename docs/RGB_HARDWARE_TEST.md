@@ -82,3 +82,7 @@ cat /sys/class/power_supply/ADP1/online 2>/dev/null || true
 Expected: profile is 0/Turbo, 1/Balance or 2/Quiet; `power.ac_online` is `true` when the installed adapter is online, consistent with the Linux PSU class and original Windows `LineStatus == 1`. Neither command writes WMI.
 
 Only after verifying and deciding to accept thermal risk, explicitly re-install with `--enable-writes --enable-platform-writes` and test **Balanced before Quiet** while monitoring CPU temperature and main/small fan RPM. Turbo requires AC online and a second browser confirmation. If unexpected temperatures, fan 0 RPM under load, or WMI errors occur, stop further profile writes. The original ControlCenter has no verified manual PWM slider for this M11; do not attempt `0x14` or `0x15` SET based on generic Bitland docs.
+
+## 2026-11-04 owner-confirmed hardware result
+
+The MetaCube M11 owner reports that physical top-cover RGB ring rotation with four colors (`0033AA`, `0088FF`, `00E5D4`, `8844FF`), `mode=spin (4)`, `speed=2`, `direction=0`, `cycle=0`, `transition=0` is **visibly working** with DKMS v2.3.0. Brightness at that reading was 197/255. This confirms one known-good four-color effect; it does not validate other speed values, direction changes, cycles, or transitions. The previous LED-output failure after speed modification remains a known issue.

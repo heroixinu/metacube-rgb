@@ -1,3 +1,11 @@
+## 2.3.1 — systemd-backed Web lifecycle commands
+
+- Add `metacube-rgb web start / stop / restart / status`, backed by the installed `metacube-rgb-web.service` instead of forking a root-owned ad-hoc process. Existing `metacube-rgb web` foreground invocation is unchanged.
+- Show the existing token only in the operator's interactive terminal on start/restart; omit credentials from service logs, redirected output, and status.
+- Prevent using foreground-only `--host`, `--port`, `--demo`, `--token-file`, `--show-token` options for managed background actions; configure `/etc/default/metacube-rgb-web` instead.
+- Add mocked systemctl unit tests. `bash install.sh --web-only` deploys the extra Python module without rebuilding DKMS v2.3.0.
+- Owner confirms physical four-color ring rotation at `speed=2` in v2.3.0; keep speed customization locked by default.
+
 ## 2.3.0 — Windows WPF OEM alignment (RGB / performance / fans)
 
 - True WPF brightness 0–10 slider, byte mapping `min(level*26,255)`; preserve existing precise raw brightness if no slider input.

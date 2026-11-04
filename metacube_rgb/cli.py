@@ -11,6 +11,7 @@ from .core import (Device, MODES, PERFORMANCE_MODES, MetaCubeError,
                    rgb_experimental_reasons, experimental_rgb_enabled)
 from .web import DEFAULT_TOKEN, serve
 from .templates import system_templates, system_template
+from .webctl import manage_web_service
 
 
 def main(argv=None):
@@ -49,11 +50,13 @@ def main(argv=None):
     sub.add_parser('save',help='Save boot restore configuration')
     apply_cmd=sub.add_parser('apply',help='Apply saved boot restore configuration')
     apply_cmd.add_argument('--dry-run',action='store_true')
-    web=sub.add_parser('web',help='Launch authenticated Web UI')
-    web.add_argument('--host',default=os.environ.get('METACUBE_WEB_HOST','0.0.0.0'),
+    web=sub.add_parser('web',help='Run Web UI foreground or manage its systemd background service')
+    web.add_argument('operation',nargs='?',choices=('start','stop','restart','status'),
+                     help='start/stop/restart/status for systemd background service; omit to run foreground')
+    web.add_argument('--host',default=None,
                      help='IPv4 bind address (default: 0.0.0.0, accessible via LAN IP)')
-    web.add_argument('--port',type=int,default=int(os.environ.get('METACUBE_WEB_PORT','8765')))
-    web.add_argument('--token-file',type=Path,default=Path(os.environ.get('METACUBE_WEB_TOKEN_FILE',str(DEFAULT_TOKEN))))
+    web.add_argument('--port',type=int,default=None)
+    web.add_argument('--token-file',type=Path,default=None)
     web.add_argument('--demo',action='store_true',help='UI demonstration; no firmware access')
     web.add_argument('--show-token',action='store_true',
                      help='Print Bearer token even when stdout is redirected (may expose credentials in logs)')
@@ -61,9 +64,21 @@ def main(argv=None):
     dev=Device()
     try:
         if args.command=='web':
-            if not 1<=args.port<=65535:
-                raise MetaCubeError('Port must be 1..65535')
-            serve(args.host,args.port,args.token_file,demo=args.demo,show_token=args.show_token)
+            if args.operation:
+                if (args.host is not None or args.port is not None or args.token_file is not None
+                        or args.demo or args.show_token):
+                    raise MetaCubeError('Background service options must be configured in '
+                                        '/etc/default/metacube-rgb-web; --host, --port, '
+                                        '--token-file, --demo and --show-token are foreground only')
+                manage_web_service(args.operation)
+            else:
+                host = args.host if args.host is not None else os.environ.get('METACUBE_WEB_HOST','0.0.0.0')
+                port = args.port if args.port is not None else int(os.environ.get('METACUBE_WEB_PORT','8765'))
+                token_file = args.token_file if args.token_file is not None else Path(
+                    os.environ.get('METACUBE_WEB_TOKEN_FILE',str(DEFAULT_TOKEN)))
+                if not 1<=port<=65535:
+                    raise MetaCubeError('Port must be 1..65535')
+                serve(host,port,token_file,demo=args.demo,show_token=args.show_token)
         elif args.command=='status':
             state=dev.state()
             if args.json:

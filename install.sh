@@ -163,7 +163,7 @@ if [[ "$WEB_ONLY" -eq 1 ]]; then
   [[ -d "$LIBROOT/python/metacube_rgb" && -d "$LIBROOT/python/web" ]] || fail 'Existing Web assets not found'
   need python3
   need systemctl
-  python3 -m py_compile "$HERE/metacube_rgb/cli.py" "$HERE/metacube_rgb/web.py" "$HERE/metacube_rgb/__init__.py" || fail 'Python syntax check failed'
+  python3 -m py_compile "$HERE/metacube_rgb/cli.py" "$HERE/metacube_rgb/web.py" "$HERE/metacube_rgb/webctl.py" "$HERE/metacube_rgb/__init__.py" || fail 'Python syntax check failed'
   snapshot_managed_paths
   if systemctl is-active --quiet metacube-rgb-web.service 2>/dev/null; then
     WEB_RUNNING=1
