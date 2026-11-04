@@ -82,14 +82,64 @@ class DeviceTests(unittest.TestCase):
                 self.device.lighting({'brightness':200})
             writer.assert_called_once()
 
-    def test_only_custom_speed_blocked_before_sysfs_write(self):
+    def test_all_oem_speeds_allowed_and_snapshotted_before_write(self):
         (self.wmi/'ambient_apply').write_text('')
-        with patch.dict(os.environ, {'METACUBE_EXPERIMENTAL_RGB':'0',
-                                      'METACUBE_ALLOW_SPEED_CUSTOMIZATION':'0'}), \
-             patch.object(self.device,'_write') as writer:
+        calls=[]
+        def emulator(attr, value):
+            self.assertEqual(attr,'ambient_apply')
+            snapshot=self.device.history()[0]
+            self.assertEqual(snapshot['raw'],(self.wmi/'ambient_raw').read_text().strip())
+            parts=value.split(' ')
+            data=bytearray.fromhex(snapshot['raw'])
+            data[4]=int(parts[0]);data[24]=int(parts[1]);data[25:29]=bytes(int(v) for v in parts[2:6])
+            data[5]=len(parts[6].split(','))
+            data[6:24]=bytes.fromhex(''.join(parts[6].split(','))).ljust(18,b'\0')
+            (self.wmi/'ambient_raw').write_text(data.hex())
+            calls.append(int(parts[2]))
+        with patch.dict(os.environ, {'METACUBE_LOCK_SPEED_CUSTOMIZATION':'0'}), \
+             patch.object(self.device,'_write',side_effect=emulator):
             for speed in (0,1,3,10):
-                with self.subTest(speed=speed), self.assertRaisesRegex(MetaCubeError,'speed is locked'):
-                    self.device.lighting({'speed':speed})
+                with self.subTest(speed=speed):
+                    self.assertEqual(self.device.lighting({'speed':speed})['speed'],speed)
+        self.assertEqual(calls,[0,1,3,10])
+        self.assertEqual(len(self.device.history()),4)
+        self.assertEqual(self.device.history()[0]['lighting']['speed'],3)
+        self.assertEqual(self.device.rgb_history.path.stat().st_mode&0o777,0o600)
+
+    def test_admin_can_lock_custom_speed_before_any_backup_or_wmi_write(self):
+        (self.wmi/'ambient_apply').write_text('')
+        with patch.dict(os.environ,{'METACUBE_LOCK_SPEED_CUSTOMIZATION':'1'}), \
+             patch.object(self.device,'_write') as writer:
+            with self.assertRaisesRegex(MetaCubeError,'locked by the administrator'):
+                self.device.lighting({'speed':3})
+            writer.assert_not_called()
+            self.assertEqual(self.device.history(),[])
+
+    def test_history_restore_uses_validated_normal_write(self):
+        (self.wmi/'ambient_apply').write_text('')
+        def emulate(attr,value):
+            parts=value.split(' ')
+            data=bytearray.fromhex((self.wmi/'ambient_raw').read_text().strip())
+            data[4]=int(parts[0]);data[24:29]=bytes(int(v) for v in (parts[1],*parts[2:6]))
+            data[5]=len(parts[6].split(','))
+            data[6:24]=bytes.fromhex(''.join(parts[6].split(','))).ljust(18,b'\0')
+            (self.wmi/'ambient_raw').write_text(data.hex())
+        with patch.object(self.device,'_write',side_effect=emulate):
+            before=self.device.state()
+            self.device.lighting({'speed':3})
+            self.assertEqual(self.device.history()[0]['lighting']['speed'],2)
+            restored=self.device.restore_rgb()
+            self.assertEqual(restored['speed'],2)
+            self.assertEqual(restored['colors'],before['colors'])
+            self.assertEqual(self.device.history()[0]['lighting']['speed'],3)
+
+    def test_history_backup_failure_must_prevent_firmware_write(self):
+        (self.wmi/'ambient_apply').write_text('')
+        path=self.device.rgb_history.path
+        path.write_text('{invalid JSON}')
+        with patch.object(self.device,'_write') as writer:
+            with self.assertRaisesRegex(MetaCubeError,'history cannot be read'):
+                self.device.lighting({'speed':3})
             writer.assert_not_called()
 
     def test_spin_multicolor_direction_cycle_transition_allowed_at_speed_two(self):
@@ -143,16 +193,14 @@ class DeviceTests(unittest.TestCase):
         self.assertTrue(results['keyboard_brightness']['unsupported'])
         self.assertIn('disabled',results['keyboard_mode']['reason'])
 
-    def test_web_real_device_guards_advanced_effects(self):
+    def test_web_plan_advises_unverified_speeds_but_allows_oem_range(self):
         api=Api(self.device,Presets(self.root/'presets-real.json'),demo=False)
         state=api.read('/api/status')['lighting']
-        self.assertFalse(state['rgb_experimental_enabled'])
-        with patch.dict(os.environ, {'METACUBE_EXPERIMENTAL_RGB':'0'}):
+        self.assertTrue(state['speed_customization_enabled'])
+        with patch.dict(os.environ, {'METACUBE_LOCK_SPEED_CUSTOMIZATION':'0'}):
             plan=api.write('/api/lighting/plan',{'mode':'spin','speed':5})
-            self.assertFalse(plan['can_apply'])
+            self.assertTrue(plan['can_apply'])
             self.assertGreater(len(plan['experimental_reasons']),0)
-            with self.assertRaisesRegex(MetaCubeError,'speed is locked'):
-                api.write('/api/lighting',{'mode':'spin','speed':5})
             allowed=api.write('/api/lighting/plan',{
                 'mode':'spin','colors':['112233','445566'],'speed':2,'direction':1,'cycle':2,'transition':1})
             self.assertTrue(allowed['can_apply'])

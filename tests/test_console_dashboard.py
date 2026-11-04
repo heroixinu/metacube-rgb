@@ -15,7 +15,7 @@ class SimDevice(DemoDevice):
         self.writes+=1
         return super().lighting(changes,expected_raw)
     def state(self):
-        d=super().state();d['speed_customization_enabled']=False;d['rgb_experimental_enabled']=False;return d
+        d=super().state();d['speed_customization_enabled']=True;d['rgb_experimental_enabled']=True;return d
     def profile_status(self):
         return {'profile':{'value':1,'label':'balanced'}, 'power':{'ac_online':True,'source':'demo'},
             'write_enabled':False,'available_modes':{'turbo':0,'balanced':1,'quiet':2},'turbo_available':True,'manual_fan_speed_supported':False}
@@ -81,7 +81,7 @@ def main():
         page.locator('#view-dashboard [data-dashboard-presets="system"]').click()
         assert page.locator('#dashboardPresetCards .dashboard-preset-tile').count()==4
         assert page.locator('#view-dashboard [data-profile="0"]').is_disabled()
-        assert page.locator('#dashSpeedLabel').inner_text().find('默认锁定')>=0
+        assert page.locator('#dashSpeedLabel').inner_text().find('可调整')>=0
         page.set_viewport_size({'width':390,'height':844})
         page.wait_for_timeout(150)
         page.evaluate("document.querySelector('#toast').classList.remove('visible')")

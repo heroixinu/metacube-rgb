@@ -15,23 +15,23 @@ ROOT=Path(__file__).resolve().parents[1]
 TOKEN='q'*48
 
 
-class LockedSpeedDemo(DemoDevice):
-    """Mirror production UI lock while keeping all backend calls simulated."""
+class OpenSpeedDemo(DemoDevice):
+    """Mirror the default OEM-range UI with only simulated backend calls."""
     def __init__(self):
         super().__init__()
         self._current['speed']=2
 
     def state(self):
         state=super().state()
-        state['speed_customization_enabled']=False
-        state['rgb_experimental_enabled']=False
+        state['speed_customization_enabled']=True
+        state['rgb_experimental_enabled']=True
         return state
 
 
 def main():
     from playwright.sync_api import sync_playwright
     with tempfile.TemporaryDirectory() as tmp:
-        api=Api(LockedSpeedDemo(), Presets(Path(tmp)/'presets.json'),demo=True)
+        api=Api(OpenSpeedDemo(), Presets(Path(tmp)/'presets.json'),demo=True)
         with sync_playwright() as playwright:
             browser=playwright.chromium.launch(headless=True,executable_path='/usr/bin/chromium',args=['--no-sandbox','--disable-dev-shm-usage','--no-proxy-server'])
             page=browser.new_page(viewport={'width':1380,'height':950},device_scale_factor=1)
@@ -69,7 +69,7 @@ def main():
             page.locator('[data-view="lighting"]').click()
             page.locator('#systemTemplateList .system-template-item').first.wait_for(timeout=3000)
             assert page.locator('#systemTemplateList .system-template-item').count()==4
-            assert page.locator('#speedInput').is_disabled(), 'Speed slider must be locked'
+            assert page.locator('#speedInput').is_enabled(), 'OEM speed 0..10 must be open by default'
             assert page.locator('#view-lighting button.mode-tile[data-mode="spin"]').is_enabled(), 'Spin mode must remain enabled'
             assert page.locator('#addColorButton').is_enabled(), 'Multicolor must remain available'
             assert 'conic-gradient' in page.locator('#previewRing').evaluate('(el) => el.style.getPropertyValue("--ring-palette")')

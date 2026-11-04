@@ -24,7 +24,7 @@ def main():
         assert page.locator('#lighting-preset-user').is_hidden()
         assert page.locator('#lighting-preset-system').is_visible()
         assert page.locator('#view-lighting .mode-tile').count()==4
-        assert page.locator('#speedInput').is_disabled()
+        assert page.locator('#speedInput').is_enabled()
         assert page.locator('#view-lighting .color-row').count()==4
         assert dev.writes==0
         for width,height in SIZES:
@@ -69,6 +69,17 @@ def main():
         assert page.locator('#previewSummaryCount').inner_text()=='4 色'
         assert page.locator('#applyLightingButton').is_enabled()
         assert dev.writes==0,'Editing must never write firmware without explicit Apply'
+        # Speed slider updates only the draft; first firmware apply needs confirmation.
+        page.locator('#speedInput').evaluate("el => {el.value='3';el.dispatchEvent(new Event('input',{bubbles:true}));}")
+        assert dev.writes==0
+        assert page.locator('#previewSummarySpeed').inner_text()=='3 / 10'
+        page.once('dialog',lambda d:d.dismiss())
+        page.locator('#applyLightingButton').click()
+        assert dev.writes==0, 'Declining first-use warning must abort WMI write'
+        page.once('dialog',lambda d:d.accept())
+        page.locator('#applyLightingButton').click()
+        page.wait_for_timeout(125)
+        assert dev.writes==1, 'Accepting first-use warning must apply exactly once'
         page.locator('#inspectPacketButton').click()
         assert page.locator('#packetCard').is_visible()
         assert page.evaluate('document.documentElement.scrollHeight-document.documentElement.clientHeight')<=1

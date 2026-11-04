@@ -5,6 +5,8 @@ No direct ACPI method access or arbitrary-packet writing exists in this layer.
 from __future__ import annotations
 
 import configparser
+from datetime import datetime, timezone
+import uuid
 import hmac
 import json
 import os
@@ -19,6 +21,7 @@ WMI_DIR = Path('/sys/bus/wmi/devices') / GUID
 MODULE_DIR = Path('/sys/module/metacube_ambient/parameters')
 CONFIG = Path('/etc/metacube-rgb.conf')
 PRESETS = Path('/var/lib/metacube-rgb/presets.json')
+RGB_HISTORY = Path('/var/lib/metacube-rgb/rgb-history.json')
 MODES = {'breath': 2, 'steady': 3, 'spin': 4, 'off': 5}
 REV_MODES = {v: k for k, v in MODES.items()}
 PERFORMANCE_MODES = {'turbo': 0, 'balanced': 1, 'quiet': 2}
@@ -38,23 +41,23 @@ HEX = re.compile(r'^[0-9A-F]{6}$')
 RAW = re.compile(r'^[0-9a-fA-F]{64}$')
 LOCK = threading.RLock()
 
-# The unit recovered after an AC power cycle when changing the experimental
-# animation speed caused the LEDs to go dark. Keep default speed=2 for firmware
-# writes. Other RGB controls are user-requested but not all hardware-validated.
-# METACUBE_EXPERIMENTAL_RGB=1 remains as a backwards-compatible local override.
+# The OEM Windows program exposes integer speed 0..10. Speed 2 has been
+# physically validated on this HPT machine; the other values have NOT been
+# verified and a previous out-of-range speed test left LEDs dark until AC reset.
+# Default to the OEM range but allow local administrators to opt back into the
+# conservative lock using METACUBE_LOCK_SPEED_CUSTOMIZATION=1.
 SAFE_RGB_SPEED = 2
 UNSAFE_OEM_READS = {'keyboard_mode', 'keyboard_brightness'}
 
 
 def experimental_rgb_enabled() -> bool:
-    """Only the local service administrator may unlock custom speed values."""
-    return (os.environ.get('METACUBE_ALLOW_SPEED_CUSTOMIZATION') == '1' or
-            os.environ.get('METACUBE_EXPERIMENTAL_RGB') == '1')
+    """Whether speed customization is permitted (default yes; opt-out lock)."""
+    return os.environ.get('METACUBE_LOCK_SPEED_CUSTOMIZATION') != '1'
 
 
 def rgb_experimental_reasons(target: dict) -> list[str]:
-    """Only nonbaseline animation speed is gated. Spin/multicolor remain usable."""
-    return ([f'speed={target["speed"]} (default locked to {SAFE_RGB_SPEED})']
+    """Advisory warnings for unverified speed values; not a default blocker."""
+    return ([f'speed={target["speed"]} (only {SAFE_RGB_SPEED} verified on this device)']
             if target['speed'] != SAFE_RGB_SPEED else [])
 
 
@@ -62,10 +65,9 @@ def enforce_rgb_safety(target: dict):
     reasons = rgb_experimental_reasons(target)
     if reasons and not experimental_rgb_enabled():
         raise MetaCubeError(
-            'Custom RGB animation speed is locked: ' + ', '.join(reasons) +
-            '. Restore speed=2, or opt in locally with '
-            'METACUBE_ALLOW_SPEED_CUSTOMIZATION=1. '
-            'Changing speed previously left LEDs dark until an AC power cycle.'
+            'Custom RGB animation speed is locked by the administrator: ' +
+            ', '.join(reasons) + '. Remove METACUBE_LOCK_SPEED_CUSTOMIZATION=1 '
+            'or use speed=2.'
         )
     return reasons
 
@@ -127,6 +129,9 @@ def normalize_lighting(payload: dict[str, Any], current: dict | None = None) -> 
                          ('cycle',11),('transition',1)]:
         if key in payload:
             result[key] = number(payload[key], 0, maximum, key)
+    # The existing firmware value may predate the corrected OEM 0..10 UI.
+    # Never silently re-send a stale, out-of-range value during another edit.
+    number(result['speed'], 0, 10, 'speed')
     return result
 
 
@@ -165,11 +170,62 @@ def _atomic_write(path: Path, content: str, mode=0o600):
             os.unlink(tmp)
 
 
+class RgbHistory:
+    """Private, durable RGB write-ahead snapshots; never arbitrary WMI packets."""
+    FIELDS = ('mode', 'colors', 'brightness', 'speed', 'direction', 'cycle', 'transition')
+    def __init__(self, path: Path = RGB_HISTORY):
+        self.path = Path(path)
+
+    def read(self) -> list[dict]:
+        if not self.path.exists():
+            return []
+        try:
+            data = json.loads(self.path.read_text(encoding='utf-8'))
+        except (OSError, json.JSONDecodeError) as exc:
+            raise MetaCubeError(f'RGB history cannot be read: {exc}') from exc
+        if not isinstance(data, dict) or data.get('version') != 1 or not isinstance(data.get('entries'), list):
+            raise MetaCubeError('RGB history format invalid; refusing to overwrite backups')
+        entries = data['entries']
+        if len(entries) > 10 or any(not isinstance(e, dict) or not RAW.fullmatch(str(e.get('raw', '')))
+                                    or not isinstance(e.get('lighting'), dict)
+                                    for e in entries):
+            raise MetaCubeError('RGB history entries invalid; refusing to overwrite backups')
+        return entries
+
+    def capture(self, state: dict) -> dict:
+        """Persist before WMI SET; failure aborts the hardware write."""
+        if not RAW.fullmatch(str(state.get('raw', ''))):
+            raise MetaCubeError('Cannot back up RGB state: invalid GET packet')
+        entry = {'id': uuid.uuid4().hex[:12],
+                 'created_at': datetime.now(timezone.utc).isoformat(),
+                 'raw': state['raw'],
+                 'lighting': {key: state[key] for key in self.FIELDS}}
+        entries = [entry, *self.read()][:10]
+        try:
+            _atomic_write(self.path, json.dumps({'version': 1, 'entries': entries},
+                                                ensure_ascii=False, indent=2) + '\n')
+        except OSError as exc:
+            raise MetaCubeError(f'Could not save RGB backup; hardware not modified: {exc}') from exc
+        return entry
+
+    def get(self, index: int = 1) -> dict:
+        entries = self.read()
+        index = number(index, 1, len(entries), 'history index') if entries else 0
+        if not index:
+            raise MetaCubeError('No saved RGB history yet')
+        return entries[index-1]
+
+
 class Device:
     def __init__(self, wmi_dir: Path = WMI_DIR, module_dir: Path = MODULE_DIR,
-                 power_root: Path = Path('/sys/class/power_supply')):
+                 power_root: Path = Path('/sys/class/power_supply'),
+                 history_path: Path | None = None):
         self.wmi_dir = Path(wmi_dir)
         self.module_dir = Path(module_dir)
+        # Unit-test/fake WMI roots must never touch host backup files.
+        self.rgb_history = RgbHistory(history_path or
+                                      (RGB_HISTORY if self.wmi_dir == WMI_DIR
+                                       else self.wmi_dir.parent/'rgb-history.json'))
         self.power_root = Path(power_root)
         self._fan_oem_probe_failed = False  # avoid repeated unsupported ACPI calls
         self._fan_generic_probe_failed = False
@@ -232,6 +288,15 @@ class Device:
             if all(target[k] == before[k] for k in target):
                 return before
             enforce_rgb_safety(target)
+            # Reject unsupported driver capabilities before changing history.
+            if not before['extended'] and (
+                    target['speed'] != before['speed'] or
+                    target['direction'] != before['direction'] or
+                    target['cycle'] != before['cycle'] or
+                    target['transition'] != before['transition'] or
+                    len(target['colors']) != 1):
+                raise MetaCubeError('Advanced effects require the v2+ kernel module')
+            self.rgb_history.capture(before)
             if before['extended']:
                 line = ' '.join([
                     str(MODES[target['mode']]), str(target['brightness']),
@@ -241,12 +306,6 @@ class Device:
                 ])
                 self._write('ambient_apply', line)
             else:
-                if (target['speed'] != before['speed'] or
-                    target['direction'] != before['direction'] or
-                    target['cycle'] != before['cycle'] or
-                    target['transition'] != before['transition'] or
-                    len(target['colors']) != 1):
-                    raise MetaCubeError('Advanced effects require the v2+ kernel module')
                 if target['colors'] != before['colors']:
                     self._write('ambient_color', target['colors'][0])
                 if target['brightness'] != before['brightness']:
@@ -258,6 +317,15 @@ class Device:
             if mismatch:
                 raise MetaCubeError(f'Firmware readback mismatch: {", ".join(mismatch)}')
             return after
+
+    def history(self) -> list[dict]:
+        return self.rgb_history.read()
+
+    def restore_rgb(self, index: int = 1) -> dict:
+        saved = self.rgb_history.get(index)
+        # Use the normal validated OEM fields, fresh GET and guarded writer.
+        # Full raw backup is retained for diagnostics, never injected into EC.
+        return self.lighting(saved['lighting'])
 
     @staticmethod
     def _decode_fan_pair(value: str):

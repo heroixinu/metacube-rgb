@@ -70,7 +70,7 @@ class SystemTemplateTests(unittest.TestCase):
     def test_custom_speed_blocked_even_when_applying_user_preset(self):
         self.store.update(1,{**self.device.state(), 'speed':8},'unsafe stored preset')
         with patch.dict(os.environ,{'METACUBE_EXPERIMENTAL_RGB':'0',
-                                    'METACUBE_ALLOW_SPEED_CUSTOMIZATION':'0'}):
+                                    'METACUBE_LOCK_SPEED_CUSTOMIZATION':'1'}):
             # Actual policy is in Device.lighting. Use a fake sysfs state to check gate.
             wmi=Path(self.tmp.name)/'wmi';wmi.mkdir()
             param=Path(self.tmp.name)/'param';param.mkdir()
@@ -80,5 +80,5 @@ class SystemTemplateTests(unittest.TestCase):
             real=Device(wmi,param)
             api=Api(real,self.store,demo=False)
             with patch.object(real,'_write',side_effect=AssertionError('No WMI write expected')):
-                with self.assertRaisesRegex(MetaCubeError,'speed is locked'):
+                with self.assertRaisesRegex(MetaCubeError,'locked by the administrator'):
                     api.write('/api/presets/apply',{'slot':1})

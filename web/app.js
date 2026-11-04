@@ -9,8 +9,9 @@ function advancedRgbLocked(){return Boolean(M.live&&!M.live.speed_customization_
 function draftRequiresExperimental(s){return Boolean(s&&s.speed!==2);}
 function editingDraft(state){
   const draft=cleanLighting(state);
-  // Explicitly stage the safe baseline in the editor; no firmware write occurs.
-  if(advancedRgbLocked())draft.speed=2;
+  // Keep the actual firmware value when it is within the OEM 0..10 range.
+  // Old out-of-range firmware values are staged as 2, never auto-written.
+  if(!Number.isInteger(draft.speed)||draft.speed<0||draft.speed>10||advancedRgbLocked())draft.speed=2;
   return draft;
 }
 
@@ -201,7 +202,8 @@ function refreshDraft(){
   const conflict=M.dirty && M.live?.raw!==M.baselineRaw;
   const locked=advancedRgbLocked();
   const unsafeDraft=locked&&draftRequiresExperimental(M.draft);
-  $('#rgbSafetyNotice').hidden=!locked;
+  $('#rgbSafetyNotice').hidden=!(locked || M.draft.speed!==2);
+  $('#rgbSafetyNotice').textContent=locked ? '管理员已锁定自定义速度；仅允许速度 2。' : '原厂速度范围 0–10；仅速度 2 已实机验证。其他档位可能导致灯光停止输出，必要时需完整断电恢复。';
   $('#speedInput').disabled=locked;
   const hint=conflict?'设备已被其他操作修改，请放弃草稿后重新编辑':
     (unsafeDraft?'当前速度不是 2，默认锁定自定义速度；请恢复为速度 2 后再应用':
@@ -221,7 +223,7 @@ function refreshDraft(){
   const levelLabel=M.draft.brightness===0?0:Math.min(10,Math.ceil(M.draft.brightness/26));
   $('#dashBrightnessInput').value=levelLabel;
   $('#dashBrightnessValue').textContent=`${levelLabel}/10`;
-  $('#dashSpeedLabel').textContent=M.live?.speed_customization_enabled?`${M.draft.speed} / 10 · 可调整`:`${M.draft.speed} / 10 · 默认锁定`;
+  $('#dashSpeedLabel').textContent=M.live?.speed_customization_enabled?`${M.draft.speed} / 10 · 可调整`:`${M.draft.speed} / 10 · 管理员锁定`;
   $('#dashCycleLabel').textContent=`${M.draft.cycle} / 11`;
   $('#dashTransitionInput').checked=Boolean(M.draft.transition);
   $('#dashPaletteCount').textContent=`${M.draft.colors.length} 色`;
@@ -386,6 +388,7 @@ async function applySystemTemplate(tpl){
   if(M.busy||!M.live)return;
   if(M.dirty&&!confirm('当前编辑器有未保存的修改，直接应用系统模板将覆盖设备灯光。继续吗？'))return;
   if(!confirm(`将系统模板「${tpl.name}」应用到主板？它不会修改你的用户预设。`))return;
+  if(!confirmSpeedChange(tpl.lighting))return;
   M.busy=true;refreshDraft();
   try{
     const result=await api('/api/templates/apply','POST',{id:tpl.id,expected_raw:M.live.raw});
@@ -411,6 +414,7 @@ function loadPreset(slot){
 async function applyPreset(slot){
   if(M.dirty && !confirm('当前还有未应用的编辑内容。将预设直接写入固件会覆盖这些设置，继续吗？'))return;
   if(!confirm(`将预设 ${slot} 立即写入 MetaCube 固件？`))return;
+  if(!confirmSpeedChange(M.presets[slot-1].lighting))return;
   M.busy=true;refreshDraft();
   try{
     const result=await api('/api/presets/apply','POST',{slot,expected_raw:M.live.raw});
@@ -441,8 +445,16 @@ async function importPresets(file){
     renderPresets();toast('预设导入成功，灯光保持原状');
   }catch(e){toast('导入失败：'+e.message,true);}
 }
+function confirmSpeedChange(target){
+  if(!M.live || Number(target.speed)===Number(M.live.speed))return true;
+  if(sessionStorage.getItem('metacube-speed-risk-accepted')==='1')return true;
+  const ok=confirm('首次修改 RGB 动效速度：Windows 原厂允许 0–10 整数档，但当前机器只有速度 2 已实机验证。此前灯光曾停止发光，需要完全断电恢复。\n\n本次应用前会自动备份当前配置。确认继续吗？');
+  if(ok)sessionStorage.setItem('metacube-speed-risk-accepted','1');
+  return ok;
+}
 async function applyLighting(){
   if(!M.draft || M.busy || !M.dirty)return;
+  if(!confirmSpeedChange(M.draft))return;
   M.busy=true;refreshDraft();
   try{
     if(advancedRgbLocked()&&draftRequiresExperimental(M.draft))throw new Error('动效速度自定义已锁定，请恢复为速度 2');

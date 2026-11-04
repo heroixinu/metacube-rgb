@@ -47,6 +47,9 @@ def main(argv=None):
     templates=sub.add_parser('template',help='Built-in read-only system RGB templates')
     templates.add_argument('action',choices=('list','apply'))
     templates.add_argument('id',nargs='?',type=int)
+    sub.add_parser('history',help='List 10 most recent RGB pre-write backups')
+    restore_cmd=sub.add_parser('restore',help='Restore previous RGB settings via validated WMI fields')
+    restore_cmd.add_argument('index',nargs='?',type=int,default=1,help='History item (1 = most recent)')
     sub.add_parser('save',help='Save boot restore configuration')
     apply_cmd=sub.add_parser('apply',help='Apply saved boot restore configuration')
     apply_cmd.add_argument('--dry-run',action='store_true')
@@ -90,7 +93,7 @@ def main(argv=None):
                 print(f'Speed: {state["speed"]} | Direction: {state["direction"]}')
                 print(f'Cycle: {state["cycle"]} | Transition: {state["transition"]}')
                 print(f'Writable: {state["writable"]} | Platform writes: {state["platform_writable"]}')
-                print(f'Custom animation speed unlocked: {state["speed_customization_enabled"]}')
+                print(f'OEM speed customization allowed: {state["speed_customization_enabled"]}')
                 print(f'Raw: {state["raw"]}')
         elif args.command in ('mode','color','brightness','speed','direction','cycle','transition'):
             payload={'colors':[args.value]} if args.command=='color' else {args.command:args.value}
@@ -114,6 +117,11 @@ def main(argv=None):
                                   'dry_run':True},indent=2,ensure_ascii=False))
             else:
                 print(json.dumps(dev.lighting(changes,expected_raw=args.expected_raw),indent=2))
+        elif args.command=='history':
+            entries=[{'index':i+1, 'created_at':e['created_at'], 'lighting':e['lighting'], 'raw':e['raw']} for i,e in enumerate(dev.history())]
+            print(json.dumps(entries,indent=2,ensure_ascii=False))
+        elif args.command=='restore':
+            print(json.dumps(dev.restore_rgb(args.index),indent=2,ensure_ascii=False))
         elif args.command=='colors':
             print(json.dumps(dev.lighting({'colors':args.values}),indent=2))
         elif args.command=='fans':
