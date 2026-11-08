@@ -321,10 +321,10 @@ function displayStatus(state){
   $('#heroColors').textContent=String(state.color_count)+' 色';
   $('#dashBrightnessBar').style.width=(state.brightness/255*100).toFixed(1)+'%';
   $('#dashUpdated').textContent='同步 '+new Date().toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
-  $('#platformBadge').textContent=state.platform_writable?'已授权':'默认锁定';
+  $('#platformBadge').textContent=state.platform_writable?'控制可用':'固件只读';
   $('#platformBadge').classList.toggle('unlocked',state.platform_writable);
   $$('[data-button-level]').forEach(btn=>btn.disabled=!state.platform_writable);
-  // Profile buttons are guarded by AC-online status and explicit platform opt-in.
+  // Quiet/Balance are immediately available; Turbo still requires OEM AC checks.
   if(!state.platform_writable)$$('[data-profile]').forEach(btn=>btn.disabled=true);
 }
 async function loadStatus(){
@@ -616,10 +616,10 @@ function renderProfileStatus(data){
     :'当前档位：原厂 WMI 未返回有效结果';
   const modeName=p&&!p.unsupported?({0:'狂暴',1:'均衡',2:'静音'}[p.value]||`状态 ${p.value}`):'读取失败';
   $('#dashPerf').textContent=modeName;
-  $('#dashProfileInfo').textContent=data.write_enabled?`当前：${modeName} · 写入已授权`:`当前：${modeName} · 切换需在宿主机授权`;
+  $('#dashProfileInfo').textContent=data.write_enabled?`当前：${modeName} · 可切换`:`当前：${modeName} · 固件处于只读模式`;
   $$('[data-profile]').forEach(btn=>{
     const id=Number(btn.dataset.profile);
-    btn.disabled=!data.write_enabled||(id===0&&ac!==true);
+    btn.disabled=!data.write_enabled||!p||p.unsupported||(id===0&&ac!==true);
     btn.classList.toggle('active',Boolean(p&&!p.unsupported&&p.value===id));
     if(id===0)btn.title=ac===true?'Turbo 需要确认':'原厂要求交流电源在线';
   });
@@ -638,7 +638,7 @@ function renderOem(data){
   M.oem=data;
   const perf=data.system_mode, btn=data.button_brightness;
   if(perf&&!perf.unsupported){$$('[data-profile]').forEach(x=>x.classList.toggle('active',Number(x.dataset.profile)===perf.value));$('#dashPerf').textContent='当前 '+({0:'狂暴',1:'均衡',2:'静音'}[perf.value]||`状态 ${perf.value}`);}
-  if(btn&&!btn.unsupported){$$('[data-button-level]').forEach(x=>x.classList.toggle('active',Number(x.dataset.buttonLevel)===btn.value));$('#buttonValue').textContent=`第 ${btn.value} 级`;}else{$('#buttonValue').textContent='不支持 / 未读取';}
+  if(btn&&!btn.unsupported){$$('[data-button-level]').forEach(x=>{x.disabled=!M.live?.platform_writable;x.classList.toggle('active',Number(x.dataset.buttonLevel)===btn.value);});$('#buttonValue').textContent=`第 ${btn.value} 级`;}else{$$('[data-button-level]').forEach(x=>x.disabled=true);$('#buttonValue').textContent='不支持 / 未读取';}
 }
 async function loadOemBasic(){
   try{renderOem((await api('/api/oem-basic')).functions);}catch(e){console.warn('OEM basic read: '+e.message);}
@@ -663,7 +663,7 @@ async function probeOem(){
 async function setPlatform(control,value){
   const title=control==='system_mode'?'系统性能档位':'按键灯亮度';
   if(control==='system_mode'){
-    if(!profileStatus?.write_enabled){toast('请先在宿主机授权 --enable-platform-writes',true);return;}
+    if(!profileStatus?.write_enabled){toast('固件写入已关闭；请先检查 allow_writes 设置',true);return;}
     if(value===0){
       if(profileStatus.power?.ac_online!==true){toast('原厂限制：必须检测到交流电源在线，才能使用狂暴模式',true);return;}
       if(!confirm('狂暴模式（Turbo）会改变主板的功耗和风扇策略，可能导致温度和噪音上升。\n原厂程序也会弹出确认。是否继续？'))return;

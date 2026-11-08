@@ -127,10 +127,10 @@
         <div class="profile-row"><button data-profile="2"><span>☾</span><b>静音</b><small>档位 2</small></button><button data-profile="1"><span>◉</span><b>均衡</b><small>档位 1</small></button><button data-profile="0"><span>✦</span><b>狂暴</b><small>档位 0</small></button></div>
         <div class="profile-info"><span id="profileCurrent">当前档位：等待原厂 WMI 读取</span><span id="acPowerStatus">供电状态：检测中</span></div>
         <p class="profile-oem-note">与原厂相同：静音/均衡直接切换；狂暴模式先验证系统 AC 在线，再进行二次确认。未授权时保持只读。</p>
-        <div class="warning-panel">⚠ 此类操作涉及 EC/BIOS 性能策略。首次安装默认禁用，必须使用 <code>--enable-platform-writes</code> 另行授权。请勿将网页视为已验证的超频工具。</div>
+        <div class="warning-panel">原厂静音、均衡及狂暴模式可直接操作；狂暴模式依照 Windows 原厂要求检查交流供电并进行确认。风扇仍由 EC 自动管理。</div>
       </article>
       <article class="card"><div class="card-heading"><div><span class="tiny-label">独立按键背光</span><h3>按键灯亮度</h3></div><span id="buttonValue" class="tiny-label">—</span></div><p class="section-copy">原厂提供 0–3 级按键灯亮度调节。该接口与机身 RGB 独立。</p>
-        <div class="button-levels"><button data-button-level="0">关闭</button><button data-button-level="1">低</button><button data-button-level="2">中</button><button data-button-level="3">高</button></div><p class="secondary-note">未确认硬件是否配备独立按键背光，未解锁时仅可查询。</p>
+        <div class="button-levels"><button data-button-level="0">关闭</button><button data-button-level="1">低</button><button data-button-level="2">中</button><button data-button-level="3">高</button></div><p class="secondary-note">原厂 WMI 0x19 · 0–3 档。若固件返回不支持，会显示具体错误；与顶部 RGB 圆环独立。</p>
       </article>
       <article class="card wide"><div class="card-heading"><div><span class="tiny-label">Linux 主机</span><h3>主机信息</h3></div><span class="hint">从 Linux 系统实时获取</span></div><div class="info-grid" id="systemInfo"><span>正在读取...</span></div></article>
       <article class="card wide"><div class="card-heading"><div><span class="tiny-label">设备温度分布</span><h3>硬件温度监控</h3></div><span class="hint">按 CPU、内存、SSD、网卡归类 · 悬停查看来源</span></div><div class="sensor-grid" id="sensorList"><span>正在读取...</span></div></article>

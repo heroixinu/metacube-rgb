@@ -1,3 +1,10 @@
+## 2.4.6 — Original Windows OEM performance & button lighting without secondary lock
+
+- Enable Windows-confirmed `0x08` Quiet/Balance/Turbo modes and `0x19` button-light 0–3 settings whenever existing global firmware writes are enabled; no separate `allow_platform_writes` authorization or gray buttons.
+- Keep OEM AC-online check and confirmation for Turbo; retain readback verification and EC-controlled fan policy. No direct fan PWM writes.
+- DKMS 2.3.1 accepts legacy `allow_platform_writes` config but ignores it as an independent permission; upgrade installer preserves global `allow_writes`, updates old 2.3.0 DKMS cleanly and maintains signed-module checks and rollback.
+- Refresh UI status messages and OEM control tests.
+
 # Changelog
 
 ## 2.4.5 — source-aware hardware sensor labels and Chinese-first monitoring UI

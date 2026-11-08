@@ -1,4 +1,22 @@
-# MetaCube RGB v2.4.5 — precise hardware sensor identification
+# MetaCube RGB v2.4.6 — OEM performance and button lighting enabled by default
+
+The original Windows ControlCenter profile (`WMI 0x08`, Turbo=0 / Balanced=1 / Quiet=2) and independent button-light brightness (`WMI 0x19`, 0–3) are now available whenever **global `allow_writes=1`** is active. The extra `allow_platform_writes` opt-in has been removed from kernel and Web enforcement. Existing `allow_platform_writes` module parameters remain accepted as a deprecated compatibility setting, but no longer restrict OEM commands. Turbo still checks AC power and asks for confirmation in the Web UI, matching Windows. The EC continues to own automatic fan control; no direct fan RPM/PWM writer has been added.
+
+**This release requires a signed DKMS upgrade to 2.3.1** (Web-only updates cannot remove the old driver's write restriction):
+
+```bash
+cd /root/metacube-rgb
+git pull --ff-only
+bash install.sh --enable-writes
+metacube-rgb web restart
+metacube-rgb profile
+```
+
+The existing global `allow_writes` policy is preserved by the installer when flags are omitted. Upgrading does not automatically change the active performance mode or the button-light brightness. As with the original OEM application, the actual effect of performance transitions should be verified on the M11-HPT host.
+
+---
+
+## Previous version v2.4.5 — hardware sensor identification
 
 The System page now identifies temperatures by their actual Linux hwmon device paths, PCI addresses, NVMe controller models, and DDR5 SPD Hub SMBus addresses. It distinguishes Ryzen CPU Tctl, Radeon iGPU edge, ACPI thermal zone, KIOXIA and Solidigm SSDs (including P44 Pro auxiliary sensors), and two RTL8125 PHYs. Original Windows WMI `GET 0x14` main/small fan RPM channels remain read-only. Chinese-first module headings replace the prior all-caps overlines; raw sensor keys are retained in hover diagnostics. Exact physical chassis locations are **not inferred**. See [sensor source map](docs/HARDWARE_SENSOR_MAPPING.md). No driver/EC changes; upgrade with `bash install.sh --web-only`.
 

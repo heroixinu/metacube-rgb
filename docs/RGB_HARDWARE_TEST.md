@@ -81,7 +81,7 @@ cat /sys/class/power_supply/ADP1/online 2>/dev/null || true
 
 Expected: profile is 0/Turbo, 1/Balance or 2/Quiet; `power.ac_online` is `true` when the installed adapter is online, consistent with the Linux PSU class and original Windows `LineStatus == 1`. Neither command writes WMI.
 
-Only after verifying and deciding to accept thermal risk, explicitly re-install with `--enable-writes --enable-platform-writes` and test **Balanced before Quiet** while monitoring CPU temperature and main/small fan RPM. Turbo requires AC online and a second browser confirmation. If unexpected temperatures, fan 0 RPM under load, or WMI errors occur, stop further profile writes. The original ControlCenter has no verified manual PWM slider for this M11; do not attempt `0x14` or `0x15` SET based on generic Bitland docs.
+With v2.4.6 / DKMS 2.3.1, OEM profile and button-light controls share the global `allow_writes=1` permission. There is no additional platform opt-in; if you decide to test, start with **Balanced before Quiet** while monitoring CPU temperature and main/small fan RPM. Turbo requires AC online and a second browser confirmation. If unexpected temperatures, fan 0 RPM under load, or WMI errors occur, stop further profile writes. The original ControlCenter has no verified manual PWM slider for this M11; do not attempt `0x14` or `0x15` SET based on generic Bitland docs.
 
 ## 2026-11-04 owner-confirmed hardware result
 

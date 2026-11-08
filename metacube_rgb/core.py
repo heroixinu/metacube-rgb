@@ -270,7 +270,7 @@ class Device:
             'cycle': data[27],
             'transition': data[28],
             'writable': self.flag('allow_writes'),
-            'platform_writable': self.flag('allow_platform_writes'),
+            'platform_writable': self.flag('allow_writes'),
             'extended': (self.wmi_dir / 'ambient_apply').exists(),
             'rgb_experimental_enabled': experimental_rgb_enabled(),
             'speed_customization_enabled': experimental_rgb_enabled(),
@@ -439,7 +439,7 @@ class Device:
         profile = self.read_oem(['system_mode'])['system_mode']
         ac = self.ac_status()
         return {'profile':profile, 'power':ac,
-                'write_enabled':self.flag('allow_platform_writes') and self.flag('allow_writes'),
+                'write_enabled':self.flag('allow_writes'),
                 'available_modes':PERFORMANCE_MODES,
                 'turbo_available': ac['ac_online'] is True,
                 'manual_fan_speed_supported':False}
@@ -451,8 +451,8 @@ class Device:
             raise MetaCubeError('Only OEM system mode and button brightness are writable')
         attr, maximum = mapping[control]
         val = number(value, 0, maximum, control)
-        if not (self.flag('allow_platform_writes') and self.flag('allow_writes')):
-            raise MetaCubeError('OEM platform writes are locked; explicit driver opt-in required')
+        if not self.flag('allow_writes'):
+            raise MetaCubeError('Firmware writes are disabled (allow_writes=N)')
         with LOCK:
             if control == 'system_mode' and val == PERFORMANCE_MODES['turbo']:
                 if self.ac_status()['ac_online'] is not True:

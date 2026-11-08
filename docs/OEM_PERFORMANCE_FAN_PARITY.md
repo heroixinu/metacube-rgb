@@ -23,3 +23,7 @@ Bitland generic command `0x14` is also called `MaxFanSpeedSwitch` in common upst
 No hardware WMI commands are emitted by tests. Performance profile SET is opt-in only. `metacube-rgb profile` and `/api/profile` are read-only.
 
 Upstream reference: https://docs.kernel.org/wmi/devices/bitland-mifs-wmi.html
+
+## v2.4.6 current policy (supersedes earlier opt-in description)
+
+The standalone `allow_platform_writes` gate was removed for Windows-confirmed `0x08` performance and `0x19` button-light controls. These writes now require the same global `allow_writes=1` permission as RGB. The legacy module option remains accepted for compatibility but has no effect on these writes. Turbo retains its original AC-online precondition and Web confirmation. No fan PWM write support is added. The 2.3.1 DKMS module must be installed; a Web-only update does not change the older kernel gate.

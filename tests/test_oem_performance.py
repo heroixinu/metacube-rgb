@@ -18,7 +18,7 @@ class PerformanceParityTests(unittest.TestCase):
         self.flags = self.root/'flags'
         self.flags.mkdir()
         (self.flags/'allow_writes').write_text('Y\n')
-        (self.flags/'allow_platform_writes').write_text('Y\n')
+        (self.flags/'allow_platform_writes').write_text('N\n')
         (self.wmi/'oem_system_mode').write_text('1\n')
         self.dev = Device(self.wmi, self.flags, self.power)
 
@@ -31,6 +31,19 @@ class PerformanceParityTests(unittest.TestCase):
         (root/'type').write_text(kind+'\n')
         (root/'online').write_text(str(online)+'\n')
         return root
+
+    def test_global_writes_enable_original_oem_controls(self):
+        self.assertTrue(self.dev.profile_status()['write_enabled'])
+
+    def test_button_light_works_with_legacy_platform_flag_disabled(self):
+        (self.wmi/'oem_button_brightness').write_text('1\n')
+        with patch.object(self.dev,'_write',side_effect=lambda attr,val:(self.wmi/attr).write_text(val+'\n')) as writer:
+            self.assertEqual(self.dev.platform('button_brightness',3)['value'],3)
+            writer.assert_called_once_with('oem_button_brightness','3')
+        (self.flags/'allow_writes').write_text('N\n')
+        with patch.object(self.dev,'_write') as writer, self.assertRaisesRegex(MetaCubeError,'allow_writes'):
+            self.dev.platform('button_brightness',2)
+        writer.assert_not_called()
 
     def test_oem_performance_mode_numbers(self):
         from metacube_rgb.core import PERFORMANCE_MODES

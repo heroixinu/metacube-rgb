@@ -3,7 +3,7 @@
 set -Eeuo pipefail
 
 PKG='metacube-ambient'
-VER='2.3.0'
+VER='2.3.1'
 OLD='1.0.0'  # detected below: v1, v2.0 or v2.1 predecessor
 MODULE='metacube_ambient'
 GUID='B60BFB48-3E5B-49E4-A0E9-8CFFE1B3434B'
@@ -19,7 +19,7 @@ MODULES_CONF='/etc/modules-load.d/metacube-ambient.conf'
 MODPROBE_CONF='/etc/modprobe.d/metacube-ambient.conf'
 MARKER='Managed by metacube-rgb-dkms installer'
 WRITES=''
-PLATFORM=0
+PLATFORM=0  # deprecated legacy switch
 RESTORE=0
 WEB_ONLY=0
 OLD_INSTALLED=0
@@ -40,10 +40,11 @@ usage(){
 Usage: bash install.sh [--enable-writes | --disable-writes]
                        [--enable-platform-writes] [--enable-restore]
        bash install.sh --web-only
-  --enable-writes          Allow RGB writes. Omitted => preserve current policy.
-  --disable-writes         Force all firmware writes off.
-  --enable-platform-writes ALSO enable OEM performance/keyboard button writes.
-                           AC online required for Turbo; not tested on this PVE.
+  --enable-writes          Allow RGB, OEM performance and button LED writes.
+                           Omitted => preserve current global write policy.
+  --disable-writes         Disable all firmware SET operations.
+  --enable-platform-writes Deprecated alias for --enable-writes; no longer needed.
+                           Turbo still requires AC online (matching Windows OEM).
   --enable-restore         Enable boot light restoration, saving initial preset
                            only when not already present.
   --web-only               Update Web/CLI files only; no DKMS or kernel changes.
@@ -204,11 +205,13 @@ fi
 if [[ -z "$WRITES" ]]; then
   if [[ -f "$MODPROBE_CONF" ]] && grep -q 'allow_writes=1' "$MODPROBE_CONF"; then WRITES=1; else WRITES=0; fi
 fi
-if [[ "$WRITES" -eq 0 && "$PLATFORM" -eq 1 ]]; then fail 'Platform writes also require --enable-writes'; fi
+# OEM profile / button LED use the same global write authorization as RGB.
+# Synchronize the deprecated flag for rollback and legacy sysfs readers.
+PLATFORM="$WRITES"
 
 # Select the previously installed module, if any. Do not remove a wrong version
 # when the host has both v1 and v2 source registrations.
-for candidate in 2.2.0 2.1.0 2.0.0 1.0.0; do
+for candidate in 2.3.0 2.2.0 2.1.0 2.0.0 1.0.0; do
   if [[ "$(dkms status -m "$PKG" -v "$candidate" -k "$KERNEL" 2>/dev/null || true)" == *': installed'* ]]; then
     OLD="$candidate"
     break
@@ -276,7 +279,7 @@ fi
 modprobe "$MODULE" || fail 'Unable to load signed v2 module'
 [[ -r "$WMI/ambient_raw" && -r "$WMI/ambient_apply" && -r "$WMI/oem_fan_rpm_oem" ]] || fail 'Expected RGB and OEM fan-monitor sysfs attributes were not created'
 [[ "$(cat /sys/module/$MODULE/parameters/allow_writes)" == "$([[ "$WRITES" == '1' ]] && echo Y || echo N)" ]] || fail 'RGB write flag mismatch'
-[[ "$(cat /sys/module/$MODULE/parameters/allow_platform_writes)" == "$([[ "$PLATFORM" == '1' ]] && echo Y || echo N)" ]] || fail 'Platform write flag mismatch'
+[[ "$(cat /sys/module/$MODULE/parameters/allow_platform_writes)" == "$([[ "$PLATFORM" == '1' ]] && echo Y || echo N)" ]] || fail 'Legacy platform parameter mismatch'
 MODULE_SWITCHED=1
 
 UPGRADE_COMMITTED=1

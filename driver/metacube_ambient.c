@@ -35,10 +35,13 @@ static bool allow_writes;
 module_param(allow_writes, bool, 0444);
 MODULE_PARM_DESC(allow_writes, "Opt in to ambient-light writes (default false)");
 
-/* Separate opt-in for thermal/performance-related and button LED writes. */
-static bool allow_platform_writes;
+/* Legacy module option, retained for existing modprobe configurations.
+ * OEM Windows profile (0x08) and button LED (0x19) require only the same
+ * global allow_writes switch as RGB. This legacy option does not gate writes.
+ */
+static bool allow_platform_writes = true;
 module_param(allow_platform_writes, bool, 0444);
-MODULE_PARM_DESC(allow_platform_writes, "Opt in to OEM profile/button writes (default false)");
+MODULE_PARM_DESC(allow_platform_writes, "Deprecated, ignored: OEM profile/button writes follow allow_writes");
 
 struct metacube_ambient {
     struct wmi_device *wdev;
@@ -496,12 +499,12 @@ static ssize_t oem_fan_rpm_oem_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(oem_fan_rpm_oem);
 
-/* These two OEM controls require a distinct, explicit platform opt-in. */
+/* OEM-confirmed controls use the common firmware-write permission. */
 static int mc_set_oem_scalar(struct metacube_ambient *ctx, u8 function, u8 val)
 {
     u8 packet[PACKET_SIZE] = { 0 }, output[PACKET_SIZE] = { 0 };
     int set_ret, get_ret;
-    if (!allow_writes || !allow_platform_writes)
+    if (!allow_writes)
         return -EPERM;
     packet[4] = val;
     set_ret = mc_wmi_call_func(ctx, OP_SET, function, packet, output);
@@ -535,14 +538,13 @@ static ssize_t oem_system_mode_store(struct device *dev,
     int ret;
     if (kstrtouint(buf, 10, &val) || val > 2)
         return -EINVAL;
-    if (!allow_platform_writes || !allow_writes)
+    if (!allow_writes)
         return -EPERM;
     mutex_lock(&ctx->lock);
     /* The M11 Windows OEM TurboMode_Click uses GetSystemPowerStatus()
      * and requires LineStatus == 1 (AC online); it does not require a
      * particular circular/USB-C connector WMI value. Match that behavior
      * using Linux's power-supply state, failing closed when unknown.
-     * This only runs after the separate allow_platform_writes opt-in.
      */
     if (val == 0 && power_supply_is_system_supplied() != 1) {
         mutex_unlock(&ctx->lock);
@@ -576,7 +578,7 @@ static ssize_t oem_button_brightness_store(struct device *dev,
     int ret;
     if (kstrtouint(buf, 10, &val) || val > 3)
         return -EINVAL;
-    if (!allow_platform_writes || !allow_writes)
+    if (!allow_writes)
         return -EPERM;
     mutex_lock(&ctx->lock);
     ret = mc_set_oem_scalar(ctx, FUNC_BUTTON_LIGHT, val);
@@ -643,6 +645,6 @@ static struct wmi_driver metacube_ambient_driver = {
 module_wmi_driver(metacube_ambient_driver);
 
 MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("MetaCube OEM WMI controller: ambient RGB and gated OEM settings");
-MODULE_VERSION("2.3.0");
+MODULE_DESCRIPTION("MetaCube OEM WMI controller: ambient RGB, OEM performance modes and button lighting");
+MODULE_VERSION("2.3.1");
 MODULE_AUTHOR("OpenAI ChatGPT (reverse engineering aid)");

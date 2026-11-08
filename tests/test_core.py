@@ -206,9 +206,9 @@ class DeviceTests(unittest.TestCase):
             self.assertTrue(allowed['can_apply'])
             self.assertEqual(allowed['experimental_reasons'],[])
 
-    def test_oem_platform_requires_two_flags(self):
+    def test_oem_platform_uses_global_write_flag_only(self):
         (self.wmi/'oem_button_brightness').write_text('2\n')
-        (self.params/'allow_platform_writes').write_text('Y\n')
+        (self.params/'allow_platform_writes').write_text('N\n')
         with patch.object(self.device,'_write',return_value=None) as writer:
             self.assertEqual(self.device.platform('button_brightness',2)['value'],2)
             writer.assert_called_once_with('oem_button_brightness','2')
@@ -221,9 +221,19 @@ class DeviceTests(unittest.TestCase):
             with self.assertRaisesRegex(MetaCubeError,'require the v2'):
                 self.device.lighting({'colors':['FF0000','00FF00']})
 
-    def test_oem_restrictions(self):
-        with self.assertRaisesRegex(MetaCubeError,'locked'):
+    def test_oem_controls_allowed_without_secondary_permission(self):
+        self.assertTrue(self.device.profile_status()['write_enabled'])
+        self.assertTrue(self.device.state()['platform_writable'])
+        (self.wmi/'oem_system_mode').write_text('1\n')
+        with patch.object(self.device,'_write',return_value=None) as writer:
+            self.assertEqual(self.device.platform('system_mode',1)['value'],1)
+            writer.assert_called_once_with('oem_system_mode','1')
+        (self.params/'allow_writes').write_text('N\n')
+        self.assertFalse(self.device.profile_status()['write_enabled'])
+        self.assertFalse(self.device.state()['platform_writable'])
+        with patch.object(self.device,'_write') as writer, self.assertRaisesRegex(MetaCubeError,'allow_writes'):
             self.device.platform('system_mode',1)
+        writer.assert_not_called()
         with self.assertRaises(MetaCubeError):
             self.device.platform('gpu_mode',1)
 

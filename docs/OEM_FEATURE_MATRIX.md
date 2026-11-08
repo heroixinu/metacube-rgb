@@ -93,3 +93,7 @@ The following values come from the user-supplied `玄机中枢.dll` IL. They mus
 | Button LED | WMI 0x19, levels 0–3 | Gated read/write and readback | Whether M11 has an independently controlled LED still unverified |
 
 Full evidence and safe handling: [OEM performance and fan investigation](OEM_PERFORMANCE_FAN_PARITY.md).
+
+## v2.4.6 current OEM platform-control policy
+
+Original Windows-confirmed performance modes (`0x08`: Turbo 0, Balance 1, Quiet 2) and button-light brightness (`0x19`: 0–3) are writable by default whenever `allow_writes=1`. No separate `allow_platform_writes` opt-in remains. Turbo still checks host AC online and requires a Web confirmation. Generic fan PWM/maximum fan controls are not exposed. The v2.3.1 kernel driver must be installed to apply this policy; earlier rows above describe historical implementation stages.

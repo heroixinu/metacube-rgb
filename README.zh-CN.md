@@ -1,4 +1,22 @@
-# MetaCube RGB v2.4.5 — 系统硬件温度准确命名与监控页面优化
+# MetaCube RGB v2.4.6 — 原厂性能模式与按键灯默认开放
+
+与 Windows 原版「玄机中枢」一致：静音（2）、均衡（1）、狂暴（0）对应 **WMI 0x08**，独立按键灯亮度 0–3 档对应 **WMI 0x19**。只要当前 MetaCube 驱动已经开启通用固件写入 `allow_writes=1`，这两组操作就直接可用，不再要求额外的 `--enable-platform-writes` 授权。旧内核参数 `allow_platform_writes` 仅作为兼容项保留，不再限制写入。Turbo 仍按原厂要求检查交流供电、由网页弹出确认；风扇自动曲线仍交给 EC，不提供手动 PWM 控制。
+
+**此次须升级 DKMS 至 2.3.1，不能仅使用 `--web-only`：**
+
+```bash
+cd /root/metacube-rgb
+git pull --ff-only
+bash install.sh --enable-writes
+metacube-rgb web restart
+metacube-rgb profile
+```
+
+安装程序不会主动切换现有性能模式，也不会在升级时写入按键灯设置。新权限会在用户主动点击原厂控制按钮时使用。首次切换性能模式建议观察设备温度与双风扇转速，以确认硬件表现。
+
+---
+
+## 历史版本 v2.4.5 — 温度传感器命名
 
 系统设置页现在使用 Linux `hwmon` 设备路径、PCI 设备地址、NVMe 实际型号及 DDR5 SPD Hub 的 SMBus 地址，为温度指标提供中文名称。你这台 M11-HPT 的 Ryzen 7 8845HS、Radeon 780M、KIOXIA NVMe、Solidigm P44 Pro、两块 Realtek RTL8125 和两路 DDR5 SPD Hub 可分别识别；SSD 附加探头不臆测为主控或 NAND，网卡地址不臆测为实体网口编号。
 
@@ -14,7 +32,7 @@
 - 速度滑块仅更改本地草稿，不会实时触发 WMI。预设“立即应用”在涉及速度变化时也会进行首次风险提醒。
 - 每次实际 RGB 写入前，自动保存最近 10 次配置：`/var/lib/metacube-rgb/rgb-history.json`，权限 `0600`，包含原始 32 字节 GET 状态及可验证的 RGB 参数。备份失败时不继续写硬件。
 - 查看：`metacube-rgb history`。恢复：`metacube-rgb restore 1`（最近一次），恢复走正常参数校验和 WMI SET，不直接写入任意原始数据包。恢复操作也会自动备份恢复前的状态。
-- 如果需要重新禁止速度自定义，管理员可以设 `METACUBE_LOCK_SPEED_CUSTOMIZATION=1`。**风扇仍只读，性能模式仍需要单独解锁**。
+- 如果需要重新禁止速度自定义，管理员可以设 `METACUBE_LOCK_SPEED_CUSTOMIZATION=1`。**风扇仍只读；性能模式额外授权在 v2.4.6 已取消**。
 - 曾经有修改速度后机身 RGB 不亮、必须断开 AC 才恢复的情况，当前尚未证明原因。历史快照不能保证修复这种固件异常。
 
 ---
@@ -42,7 +60,7 @@ metacube-rgb web restart
 
 新版总览采用橙色 / 青色的深色模块化布局：连接状态、光效模式、亮度、主/小风扇 RPM、性能模式与 AC 供电集中展示； RGB 圆环、模式按钮、亮度档位、方向、渐变和配色序列合并到主工作台；预设分系统模板/用户预设；下方提供性能档位、双风扇趋势、真实主机信息与系统资源。
 
-**安全与行为不变：** 总览更改 RGB 只修改浏览器草稿，点击“应用到设备”才发送 WMI SET；速度现可按原厂 0–10 整数档调整（仅 2 已实机确认）。风扇功能仍然只读，不提供手动 PWM 写入。静音/均衡/狂暴写入默认受 `--enable-platform-writes` 保护。总览中的“本次会话事件”仅记录这个浏览器页面发起且成功的操作，不是系统审计日志，不会伪造历史消息。
+**安全与行为不变：** 总览更改 RGB 只修改浏览器草稿，点击“应用到设备”才发送 WMI SET；速度现可按原厂 0–10 整数档调整（仅 2 已实机确认）。风扇功能仍然只读，不提供手动 PWM 写入。自 v2.4.6 起静音/均衡/狂暴和按键灯写入默认随 `allow_writes=1` 开放，无独立平台权限。总览中的“本次会话事件”仅记录这个浏览器页面发起且成功的操作，不是系统审计日志，不会伪造历史消息。
 
 升级：
 
@@ -96,7 +114,7 @@ metacube-rgb web start
 - **RGB 速度：** 继续采用原厂 0..10 档、松开/确认后写入，不允许在 Web 上每个拖动事件直接 WMI SET；v2.4.4 起默认开放 0–10 整数档；仅速度 2 已通过实机验收。
 - **风扇转速：** 原厂只有主/小风扇 RPM 读取（GET 0x14，大端）和 2 秒一次的性能页刷新。本版增加浏览器内一分种 RPM 趋势图，仍然不发任何风扇写入。
 - **性能模式：** 原厂静音 `2`、均衡 `1`、狂暴 `0`。原厂 `TurboMode_Click` 检查 Windows `GetSystemPowerStatus().LineStatus==1`（在线 AC），而不是 WMI 供电插头类型。Linux 已修正为 `power_supply_is_system_supplied()` 检查，Web 显示供电状态，Turbo 弹窗二次确认。
-- **系统功能写入**：仍需明确安装时指定 `--enable-platform-writes`，默认保持锁定；性能模式实机行为尚待你的 M11 验证。
+- **系统功能写入**：自 v2.4.6 起与 RGB 共用 `allow_writes` 总开关，不需额外授权；性能模式实际散热效果仍待实机验证。
 
 **原厂没有找到独立的用户风扇 PWM 调速滑块。** 通用 Bitland 驱动文档所示 `0x14/0x15` 写入用于其他机型，不能当成这台 M11 的已经验证功能。请先用 `metacube-rgb fans` 与 `metacube-rgb profile` 获取实机数据。详见 [原厂性能/风扇核对](docs/OEM_PERFORMANCE_FAN_PARITY.md)。
 
@@ -107,7 +125,7 @@ cd /root/metacube-rgb
 metacube-rgb status --json > /root/metacube-rgb-before-v230.json
 # 用原始操作记录当前 DKMS 和性能状态
 modinfo -F version metacube_ambient
-# 拉取并编译已签名 DKMS，默认不启用性能档位写入
+# 拉取并编译已签名 DKMS；OEM 性能与按键灯随通用写入开关启用
 git pull --ff-only
 bash install.sh --enable-writes
 modinfo -F version metacube_ambient
@@ -115,7 +133,7 @@ metacube-rgb fans
 metacube-rgb profile
 ```
 
-运行 Web：`metacube-rgb web`，或者使用已经配置的 systemd 服务。此次更新**不需要、也不建议**通过 `--enable-platform-writes` 进行首次测试。等 `metacube-rgb profile` 的只读输出确认数据可用后，再在维护窗口考虑启用写入，并重点观察温度与风扇 RPM。
+运行 Web：`metacube-rgb web`，或者使用已经配置的 systemd 服务。自 v2.4.6 起不再使用 `--enable-platform-writes`，并非升级时自动切换档位。实际点击切换时请观察温度与风扇 RPM。
 
 ---
 
@@ -180,7 +198,7 @@ metacube-rgb fans
 - `metacube-rgb web` 启动本地加密令牌认证的 Web 控制台，全部 HTML/CSS/JS 随源码提供，无需前端安装依赖。
 - 机身氛围灯：呼吸 / 常亮 / 旋转 / 关闭；1–6 色 RGB；亮度 0–255；旋转速度 0–10（默认仅允许速度 2）、方向；0–11 级颜色循环；渐变开关。支持**点击「应用到设备」后一次性写入**和 WMI 回读校验。
 - 五个可保存/恢复的本地灯光预设，取代原 Windows 软件的 `.dat` 保存方式（无法直接导入 Windows 的二进制预设）。
-- 系统：静音 / 均衡 / Turbo 档位、按键灯 0–3 级；这两种写入**默认锁定**，需显式 `--enable-platform-writes` 才能开启；Turbo 额外要求固件确认圆口适配器。
+- 系统：静音 / 均衡 / Turbo 档位、按键灯 0–3 级；这两种写入自 v2.4.6 起随 `allow_writes=1` 默认开放，无额外平台权限；Turbo 要求交流电源在线并由网页确认。
 - 主机监控：Linux CPU 使用率 / 频率 / 负载、内存、磁盘、硬件温度与风扇；系统信息显示实际 PVE 主机而非虚拟机。
 - WMI 能力检测：GPU 模式、Fn Lock、触摸板、RGB 键盘和其他原厂函数的**按需只读**查询。未验证的 GPU 切换、风扇强制转速、CPU 功耗等危险操作不开放。
 - DKMS 自动编译 + 你已经注册的 MOK 证书签名 + 可选的 systemd 开机恢复。
@@ -209,7 +227,7 @@ bash install.sh --enable-writes
 
 **安装程序不会主动修改灯光或 PVE 引导配置。** 它先构建 v2.2 DKMS，确认编译后再替换现有的 v1.0 / v2.0 模块。成功时卸载旧 DKMS 版本的注册，避免未来两个版本同时构建；保留 `/usr/src/metacube-ambient-1.0.0` 作为旧版源码备份。不会删除 MOK 私钥或公钥。
 
-如果只是维护当前 RGB 功能，**不要**在首次安装时加 `--enable-platform-writes`。若此前 v1 已设 `allow_writes=1`，省略参数会尝试继承现有权限；为明确起见仍建议显式提供 `--enable-writes`。
+v2.4.6 起无需额外的 `--enable-platform-writes`；性能模式和按键灯与 RGB 共用 `allow_writes`。省略安装参数时会尝试继承已有写入配置；为明确起见可指定 `--enable-writes`。
 
 ## 直接通过 PVE 内网 IP 访问 Web
 
@@ -306,16 +324,16 @@ metacube-rgb system
 metacube-rgb oem
 ```
 
-切换**性能模式或按键灯**需显式二次授权，然后重新运行安装脚本使模块参数在下次启动仍生效：
+切换**性能模式或按键灯**不需要额外授权。升级到 DKMS 2.3.1 后，使用现有固件写入开关即可：
 
 ```bash
 cd /root/metacube-rgb
-bash install.sh --enable-writes --enable-platform-writes
+bash install.sh --enable-writes
 metacube-rgb platform system_mode balanced
 metacube-rgb platform button_brightness 2
 ```
 
-这个写入能力未在你的主机上验证，请慎用；Turbo 仅在主板 WMI 读取到圆孔适配器类型时才允许。
+这个写入能力未在你的主机上验证，请慎用；Turbo 仍需操作系统检测到交流供电在线，与原厂 Windows 的判断保持一致。
 
 ## 开机恢复灯光（可选）
 
