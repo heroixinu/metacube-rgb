@@ -126,6 +126,7 @@
       <article class="card"><div class="card-heading"><div><span class="tiny-label">原厂性能管理</span><h3>主机性能模式</h3></div><span id="platformBadge" class="locked-badge">默认锁定</span></div><p class="section-copy">原厂提供 Turbo / Balance / Quiet。切换可能改变风扇及功耗策略，请在确认机型支持后操作。</p>
         <div class="profile-row"><button data-profile="2"><span>☾</span><b>静音</b><small>档位 2</small></button><button data-profile="1"><span>◉</span><b>均衡</b><small>档位 1</small></button><button data-profile="0"><span>✦</span><b>狂暴</b><small>档位 0</small></button></div>
         <div class="profile-info"><span id="profileCurrent">当前档位：等待原厂 WMI 读取</span><span id="acPowerStatus">供电状态：检测中</span></div>
+        <label class="turbo-preference-row" for="turboSkipConfirm"><input type="checkbox" id="turboSkipConfirm"/><span>切换狂暴模式时不再提示 <small>仅当前浏览器生效 · AC 供电检查始终保留</small></span></label>
         <p class="profile-oem-note">与原厂相同：静音/均衡直接切换；狂暴模式先验证系统 AC 在线，再进行二次确认。未授权时保持只读。</p>
         <div class="warning-panel">原厂静音、均衡及狂暴模式可直接操作；狂暴模式依照 Windows 原厂要求检查交流供电并进行确认。风扇仍由 EC 自动管理。</div>
       </article>
@@ -144,5 +145,14 @@
   <footer class="footer"><span>METACUBE RGB / LINUX WMI</span><span>独立实现 · 不包含 OEM Windows 驱动</span></footer>
 </main></div>
 <dialog id="loginDialog" class="login-dialog"><form id="loginForm"><div class="login-symbol">M.</div><h2>连接到 MetaCube</h2><p>这是 PVE 宿主机控制接口。请输入服务器上生成的 Web 访问令牌。</p><label for="tokenInput">访问令牌</label><input id="tokenInput" type="password" autocomplete="off" placeholder="从 PVE 主机读取 web.token" required/><button type="submit" class="primary-button full">解锁控制台 ↗</button><small id="loginError"></small><div class="login-help">在宿主机执行：<code>sudo cat /etc/metacube-rgb/web.token</code></div></form></dialog>
+<dialog id="turboConfirmDialog" class="turbo-confirm-dialog" aria-labelledby="turboConfirmTitle" aria-describedby="turboConfirmText">
+  <div class="turbo-confirm-body">
+    <span class="turbo-confirm-kicker">原厂性能模式</span>
+    <h2 id="turboConfirmTitle">切换到狂暴模式？</h2>
+    <p id="turboConfirmText">狂暴模式可能改变 CPU 功耗和主机散热策略，带来更高的温度与风扇噪音。仅在交流供电在线时允许切换。</p>
+    <label class="turbo-confirm-remember" for="turboDialogNeverTips"><input id="turboDialogNeverTips" type="checkbox"/><span>今后在此浏览器不再提示</span></label>
+    <div class="turbo-confirm-actions"><button type="button" id="turboConfirmCancel" class="outline-button">取消</button><button type="button" id="turboConfirmAccept" class="primary-button">确认切换</button></div>
+  </div>
+</dialog>
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
 </body></html>

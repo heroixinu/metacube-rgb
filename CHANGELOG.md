@@ -1,3 +1,10 @@
+## 2.4.7 — Turbo confirmation preference (Windows OEM NeverTips)
+
+- Keep AC-online validation and firmware-side protection unchanged for Turbo, but make the Windows OEM confirmation dialog optional through a browser-local `NeverTips` preference.
+- The Turbo dialog offers “今后在此浏览器不再提示”; the performance page has an independent checkbox to re-enable the prompt at any time. Declining/Escape does not apply changes or save the suppression preference.
+- Preference remains local to the current browser, never stores a Web API token, and never disables backend AC/power checks. No changes to RGB, fan control, DKMS, presets, or other feature plans.
+- Existing feature set is now considered maintenance-oriented; unconfirmed `.dat`, GPU/WMI, and generic fan-control proposals are not part of the default roadmap.
+
 ## 2.4.6 — Original Windows OEM performance & button lighting without secondary lock
 
 - Enable Windows-confirmed `0x08` Quiet/Balance/Turbo modes and `0x19` button-light 0–3 settings whenever existing global firmware writes are enabled; no separate `allow_platform_writes` authorization or gray buttons.

@@ -602,6 +602,50 @@ async function loadFans(){
   catch(e){renderFans({available:false,source:'unavailable',note:e.message});}
   finally{fanReading=false;}
 }
+// Mirrors the Windows OEM NeverTips preference. This is a browser-only UI preference,
+// never an override of the firmware or Linux AC-power precondition.
+const TURBO_PROMPT_KEY='metacube-turbo-never-tips';
+function turboPromptSuppressed(){
+  try{return localStorage.getItem(TURBO_PROMPT_KEY)==='1';}
+  catch(_){return false;}
+}
+function setTurboPromptSuppressed(suppressed){
+  try{
+    if(suppressed)localStorage.setItem(TURBO_PROMPT_KEY,'1');
+    else localStorage.removeItem(TURBO_PROMPT_KEY);
+  }catch(_){/* Browser storage disabled: keep OEM confirmation on next attempt. */}
+  $('#turboSkipConfirm').checked=turboPromptSuppressed();
+  if(profileStatus)renderProfileStatus(profileStatus);
+}
+function confirmTurboMode(){
+  if(turboPromptSuppressed())return Promise.resolve(true);
+  const dialog=$('#turboConfirmDialog');
+  const never=$('#turboDialogNeverTips');
+  never.checked=false;
+  return new Promise(resolve=>{
+    let settled=false;
+    const finish=accepted=>{
+      if(settled)return;
+      settled=true;
+      dialog.removeEventListener('cancel',onCancel);
+      dialog.removeEventListener('close',onClosed);
+      $('#turboConfirmAccept').removeEventListener('click',onAccept);
+      $('#turboConfirmCancel').removeEventListener('click',onDecline);
+      if(accepted&&never.checked)setTurboPromptSuppressed(true);
+      if(dialog.open)dialog.close();
+      resolve(accepted);
+    };
+    const onCancel=event=>{event.preventDefault();finish(false);};
+    const onClosed=()=>finish(false);
+    const onAccept=()=>finish(true);
+    const onDecline=()=>finish(false);
+    dialog.addEventListener('cancel',onCancel);
+    dialog.addEventListener('close',onClosed);
+    $('#turboConfirmAccept').addEventListener('click',onAccept);
+    $('#turboConfirmCancel').addEventListener('click',onDecline);
+    dialog.showModal();
+  });
+}
 let profileStatus=null;
 function renderProfileStatus(data){
   profileStatus=data;
@@ -621,7 +665,7 @@ function renderProfileStatus(data){
     const id=Number(btn.dataset.profile);
     btn.disabled=!data.write_enabled||!p||p.unsupported||(id===0&&ac!==true);
     btn.classList.toggle('active',Boolean(p&&!p.unsupported&&p.value===id));
-    if(id===0)btn.title=ac===true?'Turbo 需要确认':'原厂要求交流电源在线';
+    if(id===0)btn.title=ac!==true?'原厂要求交流电源在线':turboPromptSuppressed()?'Turbo：本浏览器不再提示':'Turbo：切换前确认';
   });
 }
 async function loadProfileStatus(){
@@ -666,7 +710,7 @@ async function setPlatform(control,value){
     if(!profileStatus?.write_enabled){toast('固件写入已关闭；请先检查 allow_writes 设置',true);return;}
     if(value===0){
       if(profileStatus.power?.ac_online!==true){toast('原厂限制：必须检测到交流电源在线，才能使用狂暴模式',true);return;}
-      if(!confirm('狂暴模式（Turbo）会改变主板的功耗和风扇策略，可能导致温度和噪音上升。\n原厂程序也会弹出确认。是否继续？'))return;
+      if(!(await confirmTurboMode()))return;
     }
     // Quiet and Balanced are direct buttons in the OEM GUI.
   }else if(!confirm(`要修改${title}为 ${value} 吗？\n该功能尚未在本机验证。`))return;
@@ -735,6 +779,8 @@ function bind(){
   $('#exportPresetsButton').addEventListener('click',exportPresets);
   $('#importPresetsButton').addEventListener('click',()=>$('#importPresetsFile').click());
   $('#importPresetsFile').addEventListener('change',async e=>{await importPresets(e.target.files?.[0]);e.target.value='';});
+  $('#turboSkipConfirm').checked=turboPromptSuppressed();
+  $('#turboSkipConfirm').addEventListener('change',event=>setTurboPromptSuppressed(event.target.checked));
   $('#probeOemButton').addEventListener('click',probeOem);
   $$('[data-profile]').forEach(el=>el.addEventListener('click',()=>setPlatform('system_mode',Number(el.dataset.profile))));
   $$('[data-button-level]').forEach(el=>el.addEventListener('click',()=>setPlatform('button_brightness',Number(el.dataset.buttonLevel))));

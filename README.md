@@ -1,3 +1,7 @@
+# v2.4.7 — OEM Turbo prompt preference
+
+The Turbo confirmation dialog now supports a browser-local “do not ask again” preference, matching the Windows OEM `NeverTips` workflow. The Performance page offers a checkbox to restore confirmations at any time. AC-online validation remains unconditional on both browser and firmware paths; Quiet, Balanced and button brightness are unchanged. No DKMS update is required (`bash install.sh --web-only`). Other unverified OEM feature proposals are out of the default scope.
+
 # MetaCube RGB v2.4.6 — OEM performance and button lighting enabled by default
 
 The original Windows ControlCenter profile (`WMI 0x08`, Turbo=0 / Balanced=1 / Quiet=2) and independent button-light brightness (`WMI 0x19`, 0–3) are now available whenever **global `allow_writes=1`** is active. The extra `allow_platform_writes` opt-in has been removed from kernel and Web enforcement. Existing `allow_platform_writes` module parameters remain accepted as a deprecated compatibility setting, but no longer restrict OEM commands. Turbo still checks AC power and asks for confirmation in the Web UI, matching Windows. The EC continues to own automatic fan control; no direct fan RPM/PWM writer has been added.
